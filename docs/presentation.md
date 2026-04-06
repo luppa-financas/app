@@ -1,90 +1,90 @@
-# Claude Code na Engenharia Real
-### Do spec ao código sem perder o controle
+# Claude Code in Real Engineering
+### From spec to code without losing control
 
 ---
 
-## O problema
+## The problem
 
-- Você pede um CRUD, recebe código que "parece funcionar"
-- Dois dias depois: bug em produção, sem testes, sem documentação
+- You ask for a CRUD, you get code that "seems to work"
+- Two days later: bug in production, no tests, no documentation
 
-**Vibe coding não é o inimigo. Pular o raciocínio é.**
+**Vibe coding isn't the enemy. Skipping the reasoning is.**
 — Owain Lewis
 
 ---
 
-## O que acontece quando você usa AI com processo
+## What happens when you use AI with process
 
-Akita, 2026 — projeto real, 8 dias:
-274 commits · 4 apps · 1.323 testes · sistema em produção
+Akita, 2026 — real project, 8 days:
+274 commits · 4 apps · 1,323 tests · system in production
 
-> Não foi um prompt. Foi pair programming com processo.
+> It wasn't a prompt. It was pair programming with process.
 
 ---
 
-## Os 7 pilares do desenvolvimento com AI
+## The 7 pillars of AI-assisted development
 
-| # | Pilar | AI faz | Você faz |
+| # | Pillar | AI does | You do |
 |---|---|---|---|
-| 1 | Requirements | sugere escopo | define o problema |
-| 2 | Technical Design | apresenta trade-offs | decide a arquitetura |
-| 3 | Task Breakdown | quebra em subtarefas | aprova o plano |
-| 4 | Build | escreve o código | guia e revisa |
-| 5 | Review | revisa o próprio trabalho | valida e aprova |
-| 6 | Deploy | executa o pipeline | configura e monitora |
-| 7 | Monitor | sugere alertas | define o que importa |
+| 1 | Requirements | suggests scope | defines the problem |
+| 2 | Technical Design | presents trade-offs | decides the architecture |
+| 3 | Task Breakdown | breaks into subtasks | approves the plan |
+| 4 | Build | writes the code | guides and reviews |
+| 5 | Review | reviews its own work | validates and approves |
+| 6 | Deploy | runs the pipeline | configures and monitors |
+| 7 | Monitor | suggests alerts | defines what matters |
 
-**AI acelera cada etapa. Não substitui nenhuma.**
-
----
-
-## A camada que viabiliza tudo: CLAUDE.md
-
-Três níveis de contexto persistente:
-- **Global** — regras que valem em todos os projetos
-- **Projeto** — spec viva: stack, convenções, workflow, decisões
-- **Memória automática** — aprendizados acumulados entre sessões
-
-**É a documentação que você deveria ter escrito de qualquer jeito.**
-
-→ **[demo: abrir CLAUDE.md do Luppa]**
+**AI accelerates every step. It doesn't replace any.**
 
 ---
 
-## RFCs: decisões arquiteturais como código
+## The layer that enables everything: CLAUDE.md
 
-- Escritas *em conversa* com o agente, não sozinho
-- Ficam no repositório — contexto permanente para o agente
-- Rastreabilidade sem overhead: por que essa decisão foi tomada
+Three levels of persistent context:
+- **Global** — rules that apply across all projects
+- **Project** — living spec: stack, conventions, workflow, decisions
+- **Auto-memory** — accumulated learnings across sessions
 
-*No Luppa:* 6 RFCs antes do primeiro `npm install`
+**It's the documentation you should have written anyway.**
 
-→ **[demo: abrir docs/rfcs/]**
+→ **[demo: open Luppa's CLAUDE.md]**
 
 ---
 
-## Task Breakdown + Build: o ciclo TDD com AI
+## RFCs: architectural decisions as code
 
-Issues do GitHub → uma tarefa = um comportamento específico
+- Written *in conversation* with the agent, not alone
+- Stored in the repository — permanent context for the agent
+- Traceability without overhead: why this decision was made
+
+*In Luppa:* 6 RFCs before the first `npm install`
+
+→ **[demo: open docs/rfcs/]**
+
+---
+
+## Task Breakdown + Build: the TDD cycle with AI
+
+GitHub issues → one task = one specific behavior
 
 ```
-proposta de casos de teste → aprovação
-→ testes vermelhos → implementação mínima → verde
+proposed test cases → approval
+→ red tests → minimal implementation → green
 ```
 
-TDD fica *mais* importante com AI: o agente gera rápido demais para testar na mão.
+TDD becomes *more* important with AI: the agent generates too fast to test manually.
 
-→ **[demo: mostrar issues no GitHub]**
+→ **[demo: show GitHub issues]**
 
 ---
 
-## O que AI não faz por você
+## What AI doesn't do for you
 
-- Não decide arquitetura
-- Não valida se resolve o problema real
-- Não mantém o processo — **você mantém o processo**
+- Doesn't decide architecture
+- Doesn't validate whether it solves the real problem
+- Doesn't maintain the process — **you maintain the process**
 
-**A qualidade do output reflete a qualidade do contexto que você dá.**
+**The quality of the output reflects the quality of the context you provide.**
 
 > "The tools are free. The judgement isn't."
 
@@ -92,14 +92,14 @@ TDD fica *mais* importante com AI: o agente gera rápido demais para testar na m
 
 ## Call to action
 
-1. Crie o CLAUDE.md do seu próximo projeto **antes** de abrir o editor
-2. Escreva uma RFC para a próxima decisão técnica importante
-3. Defina o workflow do time em skills customizadas
+1. Create your next project's CLAUDE.md **before** opening the editor
+2. Write an RFC for the next important technical decision
+3. Define your team's workflow in custom skills
 
 ---
 
-## Referências
+## References
 
 - Owain Lewis — *Stop Vibe Coding* · github.com/owainlewis/youtube-tutorials
-- Akita — *Do Zero à Pós-Produção em 1 Semana* · akitaonrails.com/2026/02/20/...
-- Luppa (projeto exemplo) · github.com/[seu-usuario]/meus-cartoes
+- Akita — *From Zero to Production in 1 Week* · akitaonrails.com/2026/02/20/...
+- Luppa (example project) · github.com/[your-username]/meus-cartoes

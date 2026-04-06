@@ -1,33 +1,33 @@
-# Claude Code na Engenharia Real
-### Do spec ao código sem perder o controle
+# Claude Code in Real Engineering
+### From spec to code without losing control
 
 ---
 
-## O problema
+## The problem
 
-- Você pede um CRUD, recebe um CRUD
-- Pede uma feature, recebe código que "parece funcionar"
-- Dois dias depois: bug em produção, sem testes, sem documentação
+- You ask for a CRUD, you get a CRUD
+- You ask for a feature, you get code that "seems to work"
+- Two days later: bug in production, no tests, no documentation
 
-**Vibe coding não é o inimigo. Pular o raciocínio é.**
+**Vibe coding isn't the enemy. Skipping the reasoning is.**
 — Owain Lewis, *Stop Vibe Coding*
 
 ---
 
-## O que acontece quando você usa AI com processo
+## What happens when you use AI with process
 
-Akita, 2026 — projeto real, 8 dias:
+Akita, 2026 — real project, 8 days:
 
 - 274 commits
-- 4 aplicações
-- 1.323 testes
-- Sistema completo em produção
+- 4 applications
+- 1,323 tests
+- Complete system in production
 
-> Não foi um prompt. Foi pair programming com processo.
+> It wasn't a prompt. It was pair programming with process.
 
 ---
 
-## Os 7 pilares do desenvolvimento com AI
+## The 7 pillars of AI-assisted development
 
 1. Requirements
 2. Technical Design
@@ -37,183 +37,183 @@ Akita, 2026 — projeto real, 8 dias:
 6. Deploy
 7. Monitor
 
-**AI acelera cada etapa. Não substitui nenhuma.**
+**AI accelerates every step. It doesn't replace any.**
 
 ---
 
 ## 1. Requirements
 
-**O que estamos construindo, para quem, e o que está fora do escopo.**
+**What we're building, for whom, and what's out of scope.**
 
-- Prototipagem agora é rápida o suficiente para ser ferramenta de planejamento
-- Define o limite do que o agente pode decidir sozinho
+- Prototyping is now fast enough to be a planning tool
+- Defines the boundary of what the agent can decide on its own
 
-*No Luppa:* problema definido antes de qualquer linha de código —
-upload de fatura → extração via LLM → categorização → analytics
+*In Luppa:* problem defined before any line of code —
+invoice upload → LLM extraction → categorization → analytics
 
 ---
 
 ## 2. Technical Design
 
-**Decisões arquiteturais pertencem a você, não ao agente.**
+**Architectural decisions belong to you, not to the agent.**
 
-> "Use AI para pensar nos trade-offs. Mas seja dono das decisões."
+> "Use AI to think through trade-offs. But own the decisions."
 — Owain Lewis
 
-*No Luppa:* 6 RFCs escritas antes do primeiro `npm install`
+*In Luppa:* 6 RFCs written before the first `npm install`
 
-→ **[demo: abrir docs/rfcs/ no repositório]**
+→ **[demo: open docs/rfcs/ in the repository]**
 
 ---
 
-## O que é uma RFC aqui
+## What an RFC is here
 
-- Não é burocracia — é rastreabilidade de decisão
-- Escrita *em conversa* com o agente, não sozinho
-- Fica no repositório, vira contexto permanente
+- Not bureaucracy — it's decision traceability
+- Written *in conversation* with the agent, not alone
+- Lives in the repository, becomes permanent context
 
-**Exemplo:** RFC 002 decidiu usar PDF nativo no Claude
-em vez de parsers específicos por banco.
-Essa decisão está documentada, rastreável, e o agente
-nunca vai questionar ou reverter sem você saber.
+**Example:** RFC 002 decided to use native PDF support in Claude
+instead of bank-specific parsers.
+That decision is documented, traceable, and the agent
+will never question or revert it without you knowing.
 
-→ **[demo: abrir RFC 002]**
+→ **[demo: open RFC 002]**
 
 ---
 
 ## 3. Task Breakdown
 
-**Não entregue uma aplicação inteira para o agente.**
+**Don't hand the agent an entire application.**
 
-- Uma tarefa = uma função ou um comportamento específico
-- Se parece grande, quebre antes de começar
-- Cada issue do GitHub é uma entrega autônoma: build → review → merge
+- One task = one function or one specific behavior
+- If it feels big, break it down before starting
+- Each GitHub issue is an autonomous deliverable: build → review → merge
 
-→ **[demo: mostrar issues no GitHub]**
+→ **[demo: show GitHub issues]**
 
 ---
 
-## 4. Build — o ciclo TDD com AI
+## 4. Build — the TDD cycle with AI
 
 ```
-proposta de casos de teste → aprovação
-→ escreve só os testes → confirma vermelho
-→ implementação mínima → confirma verde
-→ review juntos antes de seguir
+proposed test cases → approval
+→ write only the tests → confirm red
+→ minimal implementation → confirm green
+→ review together before moving on
 ```
 
-**Por que TDD fica mais importante com AI, não menos:**
-o agente gera código rápido demais para testar na mão.
-Os testes são sua rede de segurança.
+**Why TDD becomes more important with AI, not less:**
+the agent generates code too fast to test manually.
+Tests are your safety net.
 
 ---
 
-## A camada que viabiliza tudo: CLAUDE.md
+## The layer that enables everything: CLAUDE.md
 
-- Arquivo de contexto persistente no repositório
-- O agente lê antes de qualquer sessão
-- Três níveis: global → projeto → memória automática
+- Persistent context file in the repository
+- The agent reads it before any session
+- Three levels: global → project → auto-memory
 
-**É a documentação que você deveria ter escrito de qualquer jeito.**
-Agora ela tem valor imediato — não fica em uma wiki que ninguém lê.
+**It's the documentation you should have written anyway.**
+Now it has immediate value — it doesn't sit in a wiki nobody reads.
 
-→ **[demo: abrir CLAUDE.md ao vivo]**
+→ **[demo: open CLAUDE.md live]**
 
 ---
 
-## O que está no CLAUDE.md do Luppa
+## What's in Luppa's CLAUDE.md
 
-- Descrição do produto e stack
-- Estrutura de módulos
-- Convenções de TypeScript
-- Decisões arquiteturais consolidadas
-- **O workflow de desenvolvimento obrigatório**
-- Comandos úteis
+- Product description and stack
+- Module structure
+- TypeScript conventions
+- Consolidated architectural decisions
+- **The mandatory development workflow**
+- Useful commands
 
-O agente nunca esquece nada que está aqui.
+The agent never forgets anything that's here.
 
 ---
 
 ## 5. Review
 
-**O passo que a maioria dos devs pula.**
+**The step most devs skip.**
 
-- Peça ao agente para revisar o próprio trabalho
-- Depois: review humano + checks automáticos
-- Edge cases, segurança e gaps de validação aparecem aqui
+- Ask the agent to review its own work
+- Then: human review + automated checks
+- Edge cases, security, and validation gaps surface here
 
-*No nosso workflow:* nenhuma linha de código sem aprovação prévia da abordagem.
-"Decisões pertencem ao usuário. Propor, nunca assumir."
+*In our workflow:* no line of code without prior approach approval.
+"Decisions belong to the user. Propose, never assume."
 
 ---
 
-## 6 e 7. Deploy e Monitor
+## 6 and 7. Deploy and Monitor
 
-**Deploy:** automatizado via pipeline — sem deploy manual
+**Deploy:** automated via pipeline — no manual deploys
 - Railway (API) + Vercel (frontend) + Supabase (DB)
-- `prisma migrate deploy` como step explícito no CI
+- `prisma migrate deploy` as an explicit CI step
 
-**Monitor:** configurado antes de chegar ao usuário
+**Monitor:** configured before it reaches the user
 - Sentry from day 1
-- Sem usuário encontrando erro antes de você
+- No user finds an error before you do
 
-*Decidido no RFC 005 — antes de qualquer código de infra.*
-
----
-
-## O que AI não faz por você
-
-- Não decide arquitetura — ela apresenta trade-offs, você decide
-- Não valida se a solução resolve o problema real
-- Não substitui julgamento sobre segurança, dados sensíveis, LGPD
-- Não mantém o processo — você mantém o processo
-
-**A qualidade do output reflete a qualidade do contexto que você dá.**
+*Decided in RFC 005 — before any infra code.*
 
 ---
 
-## O stack de contexto como investimento
+## What AI doesn't do for you
+
+- Doesn't decide architecture — it presents trade-offs, you decide
+- Doesn't validate whether the solution solves the real problem
+- Doesn't replace judgement on security, sensitive data, compliance
+- Doesn't maintain the process — you maintain the process
+
+**The quality of the output reflects the quality of the context you provide.**
+
+---
+
+## The context stack as investment
 
 ```
-CLAUDE.md global      → regras que valem em todos os projetos
-CLAUDE.md do projeto  → spec viva, atualizada a cada decisão
-RFCs                  → rastreabilidade arquitetural
-Issues do GitHub      → tarefas autocontidas, auditáveis
-Skills customizadas   → processo do time como código
+Global CLAUDE.md      → rules that apply across all projects
+Project CLAUDE.md     → living spec, updated with every decision
+RFCs                  → architectural traceability
+GitHub issues         → self-contained, auditable tasks
+Custom skills         → team process as code
 ```
 
-Quanto melhor esse stack, mais rápido você anda —
-e mais fácil é onboarding de novos devs (humanos ou agentes).
+The better this stack, the faster you move —
+and the easier it is to onboard new devs (human or agent).
 
 ---
 
-## Para gestores
+## For managers
 
-- Rastreabilidade de decisão sem overhead extra
-- Onboarding mais rápido: o CLAUDE.md é o manual do projeto
-- Padronização de workflow via skills compartilhadas
-- TDD garante que a velocidade do agente não vira dívida técnica
+- Decision traceability without extra overhead
+- Faster onboarding: CLAUDE.md is the project manual
+- Workflow standardization via shared skills
+- TDD ensures the agent's speed doesn't become technical debt
 
-**AI não reduz a necessidade de boas práticas.
-Ela amplifica as consequências de não tê-las.**
+**AI doesn't reduce the need for good practices.
+It amplifies the consequences of not having them.**
 
 ---
 
 ## Call to action
 
-1. **Hoje:** crie o CLAUDE.md do seu próximo projeto antes de abrir o editor
-2. **Na próxima feature:** escreva uma RFC de uma decisão técnica importante
-3. **No time:** discuta quais skills customizadas fariam sentido para o workflow de vocês
+1. **Today:** create your next project's CLAUDE.md before opening the editor
+2. **On your next feature:** write an RFC for an important technical decision
+3. **With your team:** discuss which custom skills would make sense for your workflow
 
 > "The tools are free. The judgement isn't."
 
 ---
 
-## Referências
+## References
 
 - Owain Lewis — *Stop Vibe Coding: The 7 Stages of Software Development With AI*
   github.com/owainlewis/youtube-tutorials
-- Akita — *Do Zero à Pós-Produção em 1 Semana*
+- Akita — *From Zero to Production in 1 Week*
   akitaonrails.com/2026/02/20/...
-- Luppa (projeto exemplo desta apresentação)
-  github.com/[seu-usuario]/meus-cartoes
+- Luppa (example project for this presentation)
+  github.com/[your-username]/meus-cartoes
