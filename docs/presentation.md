@@ -51,6 +51,19 @@ Three levels of persistent context:
 
 ---
 
+## The layer that scales your team: SKILLS.md
+
+Custom slash commands that encode your team's workflow:
+- **`/commit`** — commit with the team's standard message format
+- **`/review`** — code review checklist enforced before every PR
+- **`/rfc`** — scaffold a new RFC following the project's template
+
+**It's the process you defined in CLAUDE.md, turned into reusable commands.**
+
+→ **[demo: show a custom skill in action]**
+
+---
+
 ## RFCs: architectural decisions as code
 
 - Written *in conversation* with the agent, not alone
@@ -94,7 +107,7 @@ TDD becomes *more* important with AI: the agent generates too fast to test manua
 
 1. Create your next project's CLAUDE.md **before** opening the editor
 2. Write an RFC for the next important technical decision
-3. Define your team's workflow in custom skills
+3. Create a SKILLS.md with the commands your team runs every day
 
 ---
 

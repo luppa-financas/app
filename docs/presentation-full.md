@@ -134,6 +134,20 @@ The agent never forgets anything that's here.
 
 ---
 
+## The layer that scales your team: SKILLS.md
+
+- Custom slash commands defined in `.claude/skills/`
+- Encode repeatable team processes: `/commit`, `/review`, `/rfc`
+- Work like CLAUDE.md, but triggered on demand — not always loaded
+
+**Example:** `/review` runs a full checklist before every PR —
+security, tests, naming, edge cases — in a single command.
+The team defines the standard once. The agent enforces it every time.
+
+→ **[demo: open a custom skill file]**
+
+---
+
 ## 5. Review
 
 **The step most devs skip.**
