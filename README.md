@@ -23,8 +23,8 @@ Personal finance SaaS focused on credit card spending analysis. Users upload mon
 
 ```
 apps/
-  api/          → NestJS backend
-  web/          → Next.js frontend
+  api/          → NestJS backend (port 3333)
+  web/          → Next.js frontend (port 3000)
 packages/
   types/        → Shared TypeScript types
 docs/
@@ -33,38 +33,70 @@ docs/
 
 ## Setup
 
-**Requirements:** Node.js 20+, npm 10+
+**Requirements:** Node.js 20+, pnpm 10+
 
 ```bash
 git clone https://github.com/luppa-app/app
 cd app
-npm install
+pnpm install
+```
+
+**Environment variables:**
+
+```bash
+cp apps/api/.env.example apps/api/.env
 ```
 
 ## Running locally
 
+### Full stack (two terminals)
+
 ```bash
-# All apps in dev mode (from root)
-npm run dev
+# Terminal 1 — API (http://localhost:3333)
+make dev-api
 
-# Build all apps
-npm run build
-
-# Run all tests
-npm run test
-
-# API only
-cd apps/api
-npm run start:dev
-
-# Web only
-cd apps/web
-npm run dev
+# Terminal 2 — Web (http://localhost:3000)
+make dev-web
 ```
 
-## Environment variables
+### API only
 
-Copy `.env.example` to `.env` in each app directory and fill in the values.
+```bash
+make dev-api
+# or
+cd apps/api && pnpm start:dev
+```
+
+### Web only
+
+```bash
+make dev-web
+# or
+cd apps/web && pnpm dev
+```
+
+### Via Docker
+
+```bash
+docker-compose up
+# API available at http://localhost:3333
+```
+
+## Useful commands
+
+```bash
+make build    # build all apps
+make test     # run all tests
+make health   # check API health (requires API running)
+make migrate  # run database migrations
+```
+
+## Health check
+
+```bash
+curl http://localhost:3333/health
+# { "status": "ok" }
+```
 
 > Invoice PDFs contain personal financial data. Never commit them to git.
 > The `apps/api/src/extraction/testdata/` directory is gitignored for this reason.
