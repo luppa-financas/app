@@ -15,7 +15,7 @@ test:
 health:
 	curl -sf http://localhost:3333/health && echo ""
 
-migrate:
+migrate-deploy:
 	cd apps/api && npx prisma migrate deploy
 
 migrate-dev:
