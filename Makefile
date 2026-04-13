@@ -1,4 +1,4 @@
-.PHONY: dev-api dev-web build test health migrate
+.PHONY: dev-api dev-web build test health migrate migrate-dev studio
 
 dev-api:
 	cd apps/api && pnpm start:dev
@@ -16,4 +16,10 @@ health:
 	curl -sf http://localhost:3333/health && echo ""
 
 migrate:
-	@echo "No migrations yet — Prisma arrives in issue #4"
+	cd apps/api && npx prisma migrate deploy
+
+migrate-dev:
+	cd apps/api && npx prisma migrate dev
+
+studio:
+	cd apps/api && npx prisma studio
