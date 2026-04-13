@@ -48,6 +48,15 @@ Each with subcategories — see `api/src/categorization/categories.ts` when crea
 - **Confidence threshold**: low-confidence categorization results go to a manual review queue
 - No HTTP dependencies inside extraction or categorization modules (channel-agnostic pipeline)
 
+## Code quality skills
+
+These skills must be applied automatically when writing or reviewing code — no need to ask:
+
+- **`nestjs-best-practices`**: apply whenever writing or modifying NestJS modules, services, controllers, guards, or pipes in `apps/api`
+- **`next-best-practices`**: apply whenever writing or modifying Next.js pages, layouts, server components, or route handlers in `apps/web`
+- **`vercel-plugin:react-best-practices`**: apply whenever writing or editing React/TSX components in `apps/web`
+- **`simplify`**: run after implementing any feature to review for reuse, quality, and efficiency before committing
+
 ## Development workflow
 
 **Branch strategy:**
