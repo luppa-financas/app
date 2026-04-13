@@ -15,6 +15,9 @@
       "cache": false,
       "persistent": true
     },
+    "typecheck": {
+      "outputs": []
+    },
     "lint": {
       "outputs": []
     }
