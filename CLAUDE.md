@@ -12,14 +12,18 @@ SaaS for personal financial control. Users upload monthly credit card invoice PD
 ## Project structure
 
 ```
-api/                  -> NestJS backend
-  src/
-    invoices/         -> invoice upload and processing module
-    extraction/       -> LLM-based transaction extraction from PDFs
-    categorization/   -> merchant table + LLM classification
-    transactions/     -> transaction querying and review
-  test/               -> e2e tests
-web/                  -> Next.js frontend
+apps/
+  api/                -> NestJS backend
+    src/
+      health/         -> health check endpoint
+      invoices/       -> invoice upload and processing module
+      extraction/     -> LLM-based transaction extraction from PDFs
+      categorization/ -> merchant table + LLM classification
+      transactions/   -> transaction querying and review
+    test/             -> e2e tests
+  web/                -> Next.js frontend
+packages/
+  types/              -> shared TypeScript types (@luppa/types)
 docs/
   rfcs/               -> architecture decision records
 ```
@@ -46,7 +50,14 @@ Each with subcategories — see `api/src/categorization/categories.ts` when crea
 
 ## Development workflow
 
+**Branch strategy:**
+- Every GitHub issue gets its own feature branch: `feat/issue-N-short-description`
+- Branch is created at the start of the issue, before any code
+- Work is committed to the branch throughout the issue
+- At the end, a PR is opened against `main` and the issue is closed via the PR
+
 **Before each task:**
+- Create the feature branch for the issue
 - Explain the approach in plain text — wait for approval before coding
 
 **TDD rhythm:**
@@ -65,20 +76,27 @@ Each with subcategories — see `api/src/categorization/categories.ts` when crea
 ## Useful commands
 
 ```bash
-# API
-cd api
-npm run test          # run all tests
-npm run test:watch    # watch mode
-npm run test:e2e      # e2e tests
-npm run start:dev     # dev server with hot reload
-npm run build         # production build
+# From root (via Turborepo)
+pnpm build            # build all apps
+pnpm test             # run all tests
 
-# Web
-cd web
-npm run dev           # dev server
-npm run build         # production build
+# Makefile shortcuts (from root)
+make dev-api          # API dev server (port 3333)
+make dev-web          # Web dev server (port 3000)
+make test             # run all tests
+make health           # check API health
+
+# API (apps/api)
+pnpm test             # unit tests
+pnpm test:watch       # watch mode
+pnpm test:e2e         # e2e tests
+pnpm start:dev        # dev server with hot reload
+
+# Web (apps/web)
+pnpm dev              # dev server
+pnpm build            # production build
 ```
 
 ## Gitignored sensitive files
 
-- `api/src/extraction/testdata/*.pdf` — real invoice PDFs (sensitive data, never commit)
+- `apps/api/src/extraction/testdata/*.pdf` — real invoice PDFs (sensitive data, never commit)
