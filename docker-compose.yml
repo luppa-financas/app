@@ -1,0 +1,15 @@
+services:
+  api:
+    build:
+      context: ./apps/api
+    ports:
+      - "${PORT:-3333}:${PORT:-3333}"
+    env_file:
+      - ./apps/api/.env
+    environment:
+      - NODE_ENV=development
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./apps/api/src
+          target: /app/src
