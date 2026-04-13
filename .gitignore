@@ -26,5 +26,8 @@ npm-debug.log*
 # Test coverage
 coverage/
 
-# Dados sensíveis — PDFs reais de faturas NUNCA no git
-api/src/parser/testdata/*.pdf
+# Turbo cache
+.turbo/
+
+# Sensitive data — real invoice PDFs must never be committed
+apps/api/src/extraction/testdata/*.pdf

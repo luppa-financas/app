@@ -14,47 +14,57 @@ Personal finance SaaS focused on credit card spending analysis. Users upload mon
 | Layer | Technology | Reason |
 |---|---|---|
 | Backend | NestJS + TypeScript | See [RFC 001](docs/rfcs/001-stack.md) |
-| Frontend | Next.js + TypeScript | — |
+| Frontend | Next.js 15 + TypeScript | — |
 | Database | PostgreSQL | — |
 | LLM | Anthropic Claude API | — |
 | Infra | Railway + Vercel + Supabase | Low cost to start |
 
-## Supported banks
-
-- Bradesco (Fatura Mensal PDF) — MVP
-- Other banks via LLM-based parsing — next step (see [RFC 005](docs/rfcs/005-parsing-strategy.md))
-
 ## Project structure
 
 ```
-api/              → NestJS backend
-web/              → Next.js frontend (not started)
+apps/
+  api/          → NestJS backend
+  web/          → Next.js frontend
+packages/
+  types/        → Shared TypeScript types
 docs/
-  rfcs/           → architecture decision records
+  rfcs/         → Architecture decision records
 ```
 
 ## Setup
 
-**Requirements:** Node.js 20+
+**Requirements:** Node.js 20+, npm 10+
 
 ```bash
 git clone https://github.com/luppa-app/app
-cd app/api
+cd app
 npm install
 ```
 
-## Running the API
+## Running locally
 
 ```bash
-# development
-npm run start:dev
+# All apps in dev mode (from root)
+npm run dev
 
-# tests
+# Build all apps
+npm run build
+
+# Run all tests
 npm run test
 
-# e2e tests
-npm run test:e2e
+# API only
+cd apps/api
+npm run start:dev
+
+# Web only
+cd apps/web
+npm run dev
 ```
 
+## Environment variables
+
+Copy `.env.example` to `.env` in each app directory and fill in the values.
+
 > Invoice PDFs contain personal financial data. Never commit them to git.
-> The `api/src/parser/testdata/` directory is gitignored for this reason.
+> The `apps/api/src/extraction/testdata/` directory is gitignored for this reason.
