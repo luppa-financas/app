@@ -13,6 +13,6 @@ describe('HealthController', () => {
   });
 
   it('should return { status: "ok" }', () => {
-    expect(controller.check()).toEqual({ status: 'ok' });
+    expect(controller.check()).toEqual({ status: 'OK' });
   });
 });
