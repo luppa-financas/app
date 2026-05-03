@@ -4,10 +4,19 @@ import { CurrentUser } from './current-user.decorator';
 
 function getDecoratorFactory(decorator: typeof CurrentUser) {
   class TestController {
-    handler(@decorator() _userId: string) {}
+    handler(@decorator() __userId: string) {
+      void __userId;
+    }
   }
 
-  const args = Reflect.getMetadata(ROUTE_ARGS_METADATA, TestController, 'handler') as Record<string, { factory: (data: unknown, ctx: ExecutionContext) => string }>;
+  const args = Reflect.getMetadata(
+    ROUTE_ARGS_METADATA,
+    TestController,
+    'handler',
+  ) as Record<
+    string,
+    { factory: (data: unknown, ctx: ExecutionContext) => string }
+  >;
   const [entry] = Object.values(args);
   return entry.factory;
 }
