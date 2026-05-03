@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from './public.decorator';
-import { CLERK_CLIENT } from './auth.constants';
+import { AUTH_CLIENT } from './auth.constants';
 
 export interface ClerkClient {
   verifyToken(token: string): Promise<{ sub: string }>;
@@ -21,7 +21,7 @@ interface AuthenticatedRequest {
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
-    @Inject(CLERK_CLIENT) private readonly clerkClient: ClerkClient,
+    @Inject(AUTH_CLIENT) private readonly clerkClient: ClerkClient,
     private readonly reflector: Reflector,
   ) {}
 
@@ -31,16 +31,12 @@ export class AuthGuard implements CanActivate {
       context.getClass(),
     ]);
 
-    if (isPublic) {
-      return true;
-    }
+    if (isPublic) return true;
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const token = this.extractToken(request);
 
-    if (!token) {
-      throw new UnauthorizedException('Missing authorization token');
-    }
+    if (!token) throw new UnauthorizedException('Missing authorization token');
 
     try {
       const payload = await this.clerkClient.verifyToken(token);

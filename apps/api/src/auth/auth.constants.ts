@@ -1,1 +1,1 @@
-export const CLERK_CLIENT = Symbol('CLERK_CLIENT');
+export const AUTH_CLIENT = Symbol('AUTH_CLIENT');
