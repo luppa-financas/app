@@ -16,10 +16,7 @@ apps/
   api/                -> NestJS backend
     src/
       health/         -> health check endpoint
-      invoices/       -> invoice upload and processing module
-      extraction/     -> LLM-based transaction extraction from PDFs
-      categorization/ -> merchant table + LLM classification
-      transactions/   -> transaction querying and review
+      prisma/         -> global PrismaService (database access)
     test/             -> e2e tests
   web/                -> Next.js frontend
 packages/
@@ -27,6 +24,20 @@ packages/
 docs/
   rfcs/               -> architecture decision records
 ```
+
+### Planned modules (not yet implemented)
+
+```
+apps/api/src/
+  auth/               -> AuthGuard + @CurrentUser() + Clerk JWT validation
+  storage/            -> Supabase Storage upload/download (infra module)
+  invoices/           -> invoice upload, create PENDING, emit event
+  extraction/         -> pure service: PDF → Claude API → transactions array
+  transactions/       -> repository + listener for invoice.created event
+  shared/             -> global exception filters, pipes, common decorators
+```
+
+Sequence: auth → storage → invoices → extraction → transactions (issues #11–#16)
 
 ## TypeScript conventions
 
@@ -48,14 +59,48 @@ Each with subcategories — see `api/src/categorization/categories.ts` when crea
 - **Confidence threshold**: low-confidence categorization results go to a manual review queue
 - No HTTP dependencies inside extraction or categorization modules (channel-agnostic pipeline)
 
+## Auth
+
+- **Provider**: Clerk (JWT validation only — no Clerk SDK beyond `@clerk/backend`)
+- **AuthGuard**: global via `APP_GUARD`, validates JWT and injects `userId` into request
+- **`@CurrentUser()` decorator**: exposes `userId` in controllers
+- **`@Public()` decorator**: opt-out for public routes (e.g., health check)
+- `auth/` is a feature module at `src/auth/`, not inside `shared/`
+
+## Processing flow
+
+- **Async from day 1**: `POST /invoices` uploads PDF → creates Invoice PENDING → emits `invoice.created` → returns `{ invoiceId }`
+- **EventEmitter** (not BullMQ): no Redis dependency for MVP (~100 users)
+- **Listener** reacts to event → calls ExtractionService → saves transactions → updates Invoice to DONE/FAILED
+- Risk accepted: if API crashes mid-processing, invoice stays PENDING (acceptable for MVP)
+
+## Multi-tenancy
+
+- Row-level isolation, single DB, every query filtered by `userId`
+- Enforcement at application layer (NestJS services), no Supabase RLS for MVP
+- Every service method receives `userId` — no exceptions
+
+## NestJS patterns (aligned with `nestjs-best-practices` skill)
+
+| Skill rule | Project decision |
+|------------|-----------------|
+| `arch-feature-modules` | Modules by feature at `src/` root — no `domain/` wrapper |
+| `arch-use-repository-pattern` | Prisma never leaks into services; repositories abstract DB access |
+| `arch-use-events` | EventEmitter for decoupling: invoices → (event) → transactions → extraction |
+| `arch-single-responsibility` | One service per concern, no god services |
+| `security-use-guards` | AuthGuard global via APP_GUARD + @Public() for opt-out |
+| `di-prefer-constructor-injection` | Always constructor injection |
+| `devops-use-config-module` | NestJS ConfigModule for env vars |
+| `security-rate-limiting` | @nestjs/throttler on upload endpoint |
+
 ## Code quality skills
 
-These skills must be applied automatically when writing or reviewing code — no need to ask:
+These skills must be invoked using the Skill tool — not just referenced mentally:
 
-- **`nestjs-best-practices`**: apply whenever writing or modifying NestJS modules, services, controllers, guards, or pipes in `apps/api`
-- **`next-best-practices`**: apply whenever writing or modifying Next.js pages, layouts, server components, or route handlers in `apps/web`
-- **`vercel-plugin:react-best-practices`**: apply whenever writing or editing React/TSX components in `apps/web`
-- **`simplify`**: run after implementing any feature to review for reuse, quality, and efficiency before committing
+- **`nestjs-best-practices`**: invoke before proposing architecture or writing any code in `apps/api`
+- **`next-best-practices`**: invoke before writing any code in `apps/web`
+- **`vercel-plugin:react-best-practices`**: invoke before writing or editing TSX components in `apps/web`
+- **`simplify`**: invoke after implementing any feature, before committing
 
 ## Development workflow
 
