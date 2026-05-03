@@ -3,7 +3,7 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
-import { CLERK_CLIENT } from '../src/auth/auth.constants';
+import { AUTH_CLIENT } from '../src/auth/auth.constants';
 
 describe('HealthController (e2e)', () => {
   let app: INestApplication<App>;
@@ -12,7 +12,7 @@ describe('HealthController (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
-      .overrideProvider(CLERK_CLIENT)
+      .overrideProvider(AUTH_CLIENT)
       .useValue({ verifyToken: jest.fn() })
       .compile();
 
