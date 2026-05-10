@@ -151,6 +151,32 @@ pnpm dev              # dev server
 pnpm build            # production build
 ```
 
+## End of day
+
+When the user says they are ending the work session, always generate a daily note at:
+
+```
+/Users/ricardocolares/Documents/Obsidian Vault/Dailies/YYYY-MM-DD.md
+```
+
+Use today's date for the filename. Structure:
+
+```markdown
+# Daily — YYYY-MM-DD
+
+## O que foi discutido
+(topics discussed during the session)
+
+## Decisões
+(technical and product decisions made)
+
+## O que foi feito
+(issues worked on, PRs opened, tests written, etc.)
+
+## Próximos passos
+- [ ] pending actions the user mentioned before closing
+```
+
 ## Gitignored sensitive files
 
 - `apps/api/src/extraction/testdata/*.pdf` — real invoice PDFs (sensitive data, never commit)
