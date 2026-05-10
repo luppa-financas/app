@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
 import { InvoicesController } from './invoices.controller';
 import { InvoicesService } from './invoices.service';
 
@@ -13,9 +12,7 @@ describe('InvoicesController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [InvoicesController],
-      providers: [
-        { provide: InvoicesService, useValue: mockInvoicesService },
-      ],
+      providers: [{ provide: InvoicesService, useValue: mockInvoicesService }],
     }).compile();
 
     controller = module.get<InvoicesController>(InvoicesController);
@@ -35,7 +32,10 @@ describe('InvoicesController', () => {
       const result = await controller.create('user-1', pdfFile);
 
       expect(result).toEqual({ invoiceId: 'inv-1' });
-      expect(mockInvoicesService.create).toHaveBeenCalledWith('user-1', pdfFile);
+      expect(mockInvoicesService.create).toHaveBeenCalledWith(
+        'user-1',
+        pdfFile,
+      );
     });
   });
 });
