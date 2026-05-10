@@ -3,7 +3,7 @@
 # Build context: monorepo root
 
 # Stage 1: build
-FROM node:20.19.4-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /workspace
 
 RUN npm install -g pnpm@10.33.0
@@ -21,7 +21,7 @@ RUN pnpm --filter api exec prisma generate
 RUN pnpm --filter api build
 
 # Stage 2: production
-FROM node:20.19.4-alpine AS production
+FROM node:22-alpine AS production
 WORKDIR /app
 ENV NODE_ENV=production
 
