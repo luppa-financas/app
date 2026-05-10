@@ -5,12 +5,13 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from './public.decorator';
 import { AUTH_CLIENT } from './auth.constants';
 
 export interface ClerkClient {
-  verifyToken(token: string): Promise<{ sub: string }>;
+  verifyToken(token: string, options?: { authorizedParties?: string[] }): Promise<{ sub: string }>;
 }
 
 interface AuthenticatedRequest {
@@ -23,6 +24,7 @@ export class AuthGuard implements CanActivate {
   constructor(
     @Inject(AUTH_CLIENT) private readonly clerkClient: ClerkClient,
     private readonly reflector: Reflector,
+    private readonly config: ConfigService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -39,7 +41,10 @@ export class AuthGuard implements CanActivate {
     if (!token) throw new UnauthorizedException('Missing authorization token');
 
     try {
-      const payload = await this.clerkClient.verifyToken(token);
+      const authorizedParties = this.config
+        .get<string>('CLERK_AUTHORIZED_PARTIES', 'http://localhost:3000')
+        .split(',');
+      const payload = await this.clerkClient.verifyToken(token, { authorizedParties });
       request.user = { userId: payload.sub };
       return true;
     } catch {
