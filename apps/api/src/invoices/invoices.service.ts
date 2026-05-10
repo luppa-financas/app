@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { StorageService } from '../storage/storage.service';
 import { InvoicesRepository } from './invoices.repository';
@@ -6,16 +7,21 @@ import { InvoiceCreatedEvent } from './events/invoice-created.event';
 
 @Injectable()
 export class InvoicesService {
+  private readonly envPrefix: string;
+
   constructor(
     private readonly storageService: StorageService,
     private readonly invoicesRepository: InvoicesRepository,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+    config: ConfigService,
+  ) {
+    this.envPrefix = config.get<string>('NODE_ENV') === 'production' ? 'prod' : 'dev';
+  }
 
   async create(userId: string, file: Express.Multer.File): Promise<{ invoiceId: string }> {
     const storagePath = await this.storageService.upload(
       'invoices',
-      `${userId}/${Date.now()}-${file.originalname}`,
+      `${this.envPrefix}/${userId}/${Date.now()}-${file.originalname}`,
       file.buffer,
       file.mimetype,
     );
