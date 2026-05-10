@@ -1,55 +1,104 @@
 # Luppa
 
-Personal finance SaaS focused on credit card spending analysis. Users upload monthly invoice PDFs and the system automatically extracts, categorizes, and visualizes their expenses — no manual transaction input required.
-
-## How it works
-
-1. User uploads a credit card invoice PDF
-2. The system extracts all transactions from the PDF
-3. Transactions are categorized via LLM + a learned merchant mapping table
-4. Spending is presented as analytics broken down by category
+SaaS de controle financeiro pessoal. Usuários fazem upload de PDFs de fatura de cartão de crédito, o sistema extrai as transações via Claude, categoriza automaticamente e apresenta analytics de gastos.
 
 ## Stack
 
-| Layer | Technology | Reason |
-|---|---|---|
-| Backend | NestJS + TypeScript | See [RFC 001](docs/rfcs/001-stack.md) |
-| Frontend | Next.js 15 + TypeScript | — |
-| Database | PostgreSQL | — |
-| LLM | Anthropic Claude API | — |
-| Infra | Railway + Vercel + Supabase | Low cost to start |
+| Camada | Tecnologia |
+|--------|-----------|
+| Backend | NestJS + TypeScript (Railway) |
+| Frontend | Next.js 15 + TypeScript (Vercel) |
+| Banco | PostgreSQL (Supabase) |
+| Storage | Supabase Storage |
+| Auth | Clerk |
+| LLM | Anthropic Claude API |
 
-## Project structure
+---
 
-```
-apps/
-  api/          → NestJS backend (port 3333)
-  web/          → Next.js frontend (port 3000)
-packages/
-  types/        → Shared TypeScript types
-docs/
-  rfcs/         → Architecture decision records
-```
+## Pré-requisitos
 
-## Setup
+- Node.js 22+
+- pnpm 10+
+- Acesso aos serviços externos (ver seção de acessos abaixo)
 
-**Requirements:** Node.js 20+, pnpm 10+
+---
+
+## Acessos necessários
+
+Peça ao responsável do projeto acesso a:
+
+| Serviço | O que você precisa |
+|---------|-------------------|
+| **Supabase** | Convite para o projeto — você obtém `DATABASE_URL`, `DIRECT_URL`, `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` em Settings → API |
+| **Clerk** | Convite para o app — você obtém `CLERK_SECRET_KEY` e `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` em API Keys |
+| **Anthropic** | Acesso à API — você obtém `ANTHROPIC_API_KEY` em console.anthropic.com |
+| **GitHub** | Acesso ao repositório `luppa-financas/app` |
+
+---
+
+## Setup inicial
 
 ```bash
-git clone https://github.com/luppa-app/app
+git clone git@github.com:luppa-financas/app.git
 cd app
 pnpm install
 ```
 
-**Environment variables:**
+### Variáveis de ambiente — API
 
 ```bash
 cp apps/api/.env.example apps/api/.env
 ```
 
-## Running locally
+Edite `apps/api/.env` com os valores reais:
 
-### Full stack (two terminals)
+```env
+NODE_ENV=development
+PORT=3333
+
+# Clerk — dashboard.clerk.com → API Keys
+CLERK_SECRET_KEY=sk_test_...
+CLERK_AUTHORIZED_PARTIES=http://localhost:3000
+
+# Supabase — Settings → API
+DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true
+DIRECT_URL=postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
+SUPABASE_URL=https://[ref].supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+
+# Anthropic — console.anthropic.com → API Keys
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+### Variáveis de ambiente — Web
+
+```bash
+cp apps/web/.env.example apps/web/.env.local
+```
+
+Edite `apps/web/.env.local` com os valores reais:
+
+```env
+# Clerk — dashboard.clerk.com → API Keys
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+
+NEXT_PUBLIC_MAINTENANCE_MODE=false
+```
+
+### Banco de dados
+
+```bash
+# Aplica as migrations no banco
+make migrate-deploy
+```
+
+---
+
+## Rodando localmente
 
 ```bash
 # Terminal 1 — API (http://localhost:3333)
@@ -59,44 +108,74 @@ make dev-api
 make dev-web
 ```
 
-### API only
+Verifique que a API está saudável:
 
 ```bash
-make dev-api
-# or
-cd apps/api && pnpm start:dev
+make health
+# { "status": "OK" }
 ```
 
-### Web only
+---
+
+## Comandos úteis
 
 ```bash
-make dev-web
-# or
-cd apps/web && pnpm dev
+make dev-api        # API em modo watch (porta 3333)
+make dev-web        # Web em modo watch (porta 3000)
+make test           # todos os testes (API + web)
+make build          # build de todos os apps
+make health         # health check da API
+make migrate-deploy # aplica migrations (banco já existente)
+make migrate-dev    # cria nova migration (desenvolvimento)
+make studio         # Prisma Studio (GUI do banco)
 ```
 
-### Via Docker
+---
 
-```bash
-docker-compose up
-# API available at http://localhost:3333
+## Estrutura do projeto
+
+```
+apps/
+  api/          → NestJS backend
+    src/
+      auth/         → AuthGuard + @CurrentUser() + Clerk JWT
+      health/       → GET /health
+      invoices/     → POST /invoices (upload de fatura)
+      storage/      → Supabase Storage (upload/download)
+      prisma/       → PrismaService global
+    prisma/
+      schema.prisma → schema do banco
+    test/           → testes e2e
+  web/          → Next.js frontend
+packages/
+  types/        → tipos TypeScript compartilhados (@luppa/types)
+docs/
+  rfcs/         → decisões de arquitetura
 ```
 
-## Useful commands
+---
 
-```bash
-make build    # build all apps
-make test     # run all tests
-make health   # check API health (requires API running)
-make migrate  # run database migrations
-```
+## Supabase Storage
 
-## Health check
+O bucket `invoices` precisa existir no Supabase Storage com visibilidade **private**.
 
-```bash
-curl http://localhost:3333/health
-# { "status": "ok" }
-```
+Para criar: Supabase Dashboard → Storage → New bucket → nome: `invoices` → Private.
 
-> Invoice PDFs contain personal financial data. Never commit them to git.
-> The `apps/api/src/extraction/testdata/` directory is gitignored for this reason.
+---
+
+## Dados sensíveis
+
+PDFs de fatura contêm dados financeiros pessoais. A pasta `apps/api/src/extraction/testdata/` está no `.gitignore` — use-a para testes locais com faturas reais e nunca faça commit desses arquivos.
+
+---
+
+## Arquitetura
+
+Veja os documentos de decisão em `docs/rfcs/`:
+
+- [RFC 001](docs/rfcs/001-stack.md) — Stack e infraestrutura
+- [RFC 002](docs/rfcs/002-invoice-extraction.md) — Extração de transações via LLM
+- [RFC 003](docs/rfcs/003-categorization.md) — Categorização de transações
+- [RFC 004](docs/rfcs/004-channel-architecture.md) — Arquitetura de canais (web + WhatsApp futuro)
+- [RFC 005](docs/rfcs/005-infra.md) — Decisões de infra
+- [RFC 006](docs/rfcs/006-multitenancy.md) — Multi-tenancy
