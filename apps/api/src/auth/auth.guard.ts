@@ -21,11 +21,17 @@ interface AuthenticatedRequest {
 
 @Injectable()
 export class AuthGuard implements CanActivate {
+  private readonly authorizedParties: string[];
+
   constructor(
     @Inject(AUTH_CLIENT) private readonly clerkClient: ClerkClient,
     private readonly reflector: Reflector,
-    private readonly config: ConfigService,
-  ) {}
+    config: ConfigService,
+  ) {
+    this.authorizedParties = config
+      .getOrThrow<string>('CLERK_AUTHORIZED_PARTIES')
+      .split(',');
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
@@ -41,10 +47,9 @@ export class AuthGuard implements CanActivate {
     if (!token) throw new UnauthorizedException('Missing authorization token');
 
     try {
-      const authorizedParties = this.config
-        .get<string>('CLERK_AUTHORIZED_PARTIES', 'http://localhost:3000')
-        .split(',');
-      const payload = await this.clerkClient.verifyToken(token, { authorizedParties });
+      const payload = await this.clerkClient.verifyToken(token, {
+        authorizedParties: this.authorizedParties,
+      });
       request.user = { userId: payload.sub };
       return true;
     } catch {

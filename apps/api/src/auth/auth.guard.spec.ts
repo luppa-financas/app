@@ -4,7 +4,7 @@ import { Reflector } from '@nestjs/core';
 import { AuthGuard } from './auth.guard';
 
 const mockVerifyToken = jest.fn();
-const mockConfigGet = jest.fn().mockReturnValue('http://localhost:3000');
+const mockConfigGet = jest.fn().mockReturnValue('http://localhost:3000,https://luppin.app');
 
 const makeCtx = (authHeader?: string): ExecutionContext =>
   ({
@@ -24,8 +24,8 @@ describe('AuthGuard', () => {
     jest.resetAllMocks();
 
     reflector = { getAllAndOverride: jest.fn() } as unknown as jest.Mocked<Reflector>;
-    config = { get: mockConfigGet } as unknown as jest.Mocked<ConfigService>;
-    mockConfigGet.mockReturnValue('http://localhost:3000');
+    config = { getOrThrow: mockConfigGet } as unknown as jest.Mocked<ConfigService>;
+    mockConfigGet.mockReturnValue('http://localhost:3000,https://luppin.app');
 
     guard = new AuthGuard({ verifyToken: mockVerifyToken }, reflector, config);
   });
@@ -76,7 +76,7 @@ describe('AuthGuard', () => {
     expect(result).toBe(true);
     expect(request.user).toEqual({ userId: 'user_123' });
     expect(mockVerifyToken).toHaveBeenCalledWith('valid-token', {
-      authorizedParties: ['http://localhost:3000'],
+      authorizedParties: ['http://localhost:3000', 'https://luppin.app'],
     });
   });
 });
