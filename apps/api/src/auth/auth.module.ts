@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { createClerkClient } from '@clerk/backend';
+import { verifyToken } from '@clerk/backend';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from './auth.guard';
 import { AUTH_CLIENT } from './auth.constants';
@@ -10,8 +10,13 @@ import { AUTH_CLIENT } from './auth.constants';
     {
       provide: AUTH_CLIENT,
       inject: [ConfigService],
-      useFactory: (config: ConfigService) =>
-        createClerkClient({ secretKey: config.getOrThrow('CLERK_SECRET_KEY') }),
+      useFactory: (config: ConfigService) => {
+        const secretKey = config.getOrThrow<string>('CLERK_SECRET_KEY');
+        return {
+          verifyToken: (token: string, options?: { authorizedParties?: string[] }) =>
+            verifyToken(token, { secretKey, ...options }),
+        };
+      },
     },
     {
       provide: APP_GUARD,
