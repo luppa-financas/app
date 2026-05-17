@@ -31,7 +31,7 @@ model Transaction {
   invoice     Invoice         @relation(fields: [invoiceId], references: [id])
   date        DateTime
   description String
-  amount      Decimal
+  amount      Decimal  @db.Decimal(10, 2)
   type        TransactionType
   category    String?
   createdAt   DateTime        @default(now())
