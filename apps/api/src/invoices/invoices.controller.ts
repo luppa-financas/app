@@ -1,7 +1,9 @@
 import {
   Controller,
   FileTypeValidator,
+  Get,
   MaxFileSizeValidator,
+  Param,
   ParseFilePipe,
   Post,
   UploadedFile,
@@ -10,6 +12,8 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { InvoicesService } from './invoices.service';
+import { InvoiceResponseDto } from './dto/invoice-response.dto';
+import { InvoiceDetailResponseDto } from './dto/invoice-detail-response.dto';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -32,5 +36,20 @@ export class InvoicesController {
     file: Express.Multer.File,
   ): Promise<{ invoiceId: string }> {
     return this.invoicesService.create(userId, file);
+  }
+
+  @Get()
+  async findAll(@CurrentUser() userId: string): Promise<InvoiceResponseDto[]> {
+    const invoices = await this.invoicesService.findAll(userId);
+    return invoices.map(InvoiceResponseDto.from);
+  }
+
+  @Get(':id')
+  async findOne(
+    @Param('id') id: string,
+    @CurrentUser() userId: string,
+  ): Promise<InvoiceDetailResponseDto> {
+    const invoice = await this.invoicesService.findById(id, userId);
+    return InvoiceDetailResponseDto.from(invoice);
   }
 }

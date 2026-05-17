@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { InternalServerErrorException } from '@nestjs/common';
+import { InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InvoicesService } from './invoices.service';
@@ -8,7 +8,11 @@ import { StorageService } from '../storage/storage.service';
 import { InvoiceCreatedEvent } from './events/invoice-created.event';
 
 const mockStorageService = { upload: jest.fn() };
-const mockInvoicesRepository = { create: jest.fn() };
+const mockInvoicesRepository = {
+  create: jest.fn(),
+  findAllByUserId: jest.fn(),
+  findByIdWithTransactions: jest.fn(),
+};
 const mockEventEmitter = { emit: jest.fn() };
 
 const file = {
@@ -115,6 +119,48 @@ describe('InvoicesService', () => {
         file.buffer,
         'application/pdf',
       );
+    });
+  });
+
+  describe('findAll', () => {
+    let service: InvoicesService;
+
+    beforeEach(async () => {
+      service = await createService('development');
+    });
+
+    it('should return invoices for the given userId', async () => {
+      const invoices = [{ id: 'inv-1', userId: 'user-1' }];
+      mockInvoicesRepository.findAllByUserId.mockResolvedValue(invoices);
+
+      const result = await service.findAll('user-1');
+
+      expect(mockInvoicesRepository.findAllByUserId).toHaveBeenCalledWith('user-1');
+      expect(result).toBe(invoices);
+    });
+  });
+
+  describe('findById', () => {
+    let service: InvoicesService;
+
+    beforeEach(async () => {
+      service = await createService('development');
+    });
+
+    it('should return the invoice with transactions when found', async () => {
+      const invoice = { id: 'inv-1', userId: 'user-1', transactions: [] };
+      mockInvoicesRepository.findByIdWithTransactions.mockResolvedValue(invoice);
+
+      const result = await service.findById('inv-1', 'user-1');
+
+      expect(mockInvoicesRepository.findByIdWithTransactions).toHaveBeenCalledWith('inv-1', 'user-1');
+      expect(result).toBe(invoice);
+    });
+
+    it('should throw NotFoundException when invoice is not found', async () => {
+      mockInvoicesRepository.findByIdWithTransactions.mockResolvedValue(null);
+
+      await expect(service.findById('inv-1', 'user-1')).rejects.toThrow(NotFoundException);
     });
   });
 });
