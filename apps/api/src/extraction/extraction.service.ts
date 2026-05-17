@@ -47,7 +47,7 @@ const EXTRACTION_TOOL: Anthropic.Tool = {
             category: {
               type: 'string',
               description:
-                'Spending category. One of: Alimentação, Transporte, Moradia, Saúde, Entretenimento, Assinaturas, Compras, Educação, Viagem, Finanças, Outros',
+                'Spending category. One of: Alimentação, Transporte, Moradia, Saúde, Entretenimento, Assinaturas, Compras, Educação, Viagem, Finanças, Pets, Outros',
             },
             subcategory: {
               type: ['string', 'null'],
