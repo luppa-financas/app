@@ -83,7 +83,7 @@ export class ExtractionService {
   async extract(pdf: Buffer): Promise<ExtractedTransaction[]> {
     const response = await this.client.messages.create({
       model: EXTRACTION_MODEL,
-      max_tokens: 4096,
+      max_tokens: 16000,
       tools: [EXTRACTION_TOOL],
       tool_choice: { type: 'tool', name: 'extract_transactions' },
       messages: [
