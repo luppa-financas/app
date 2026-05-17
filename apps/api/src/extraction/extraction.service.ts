@@ -1,10 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
-import {
-  ANTHROPIC_CLIENT,
-  DEFAULT_CATEGORY,
-  EXTRACTION_MODEL,
-} from './extraction.constants';
+import { ANTHROPIC_CLIENT, EXTRACTION_MODEL } from './extraction.constants';
 import { ExtractedTransaction } from './extraction.types';
 
 interface ClaudeExtractionResult {
@@ -14,6 +10,9 @@ interface ClaudeExtractionResult {
     description: string;
     amount: number;
     type: 'debit' | 'credit';
+    category: string;
+    subcategory: string | null;
+    confidence: number;
   }>;
 }
 
@@ -45,8 +44,31 @@ const EXTRACTION_TOOL: Anthropic.Tool = {
               description: 'Transaction amount (positive)',
             },
             type: { type: 'string', enum: ['debit', 'credit'] },
+            category: {
+              type: 'string',
+              description:
+                'Spending category. One of: Alimentação, Transporte, Moradia, Saúde, Entretenimento, Assinaturas, Compras, Educação, Viagem, Finanças, Outros',
+            },
+            subcategory: {
+              type: ['string', 'null'],
+              description:
+                'Subcategory within the chosen category, or null if unsure',
+            },
+            confidence: {
+              type: 'number',
+              description:
+                'Confidence score between 0 and 1 for the category assignment',
+            },
           },
-          required: ['date', 'description', 'amount', 'type'],
+          required: [
+            'date',
+            'description',
+            'amount',
+            'type',
+            'category',
+            'subcategory',
+            'confidence',
+          ],
         },
       },
     },
@@ -103,8 +125,13 @@ export class ExtractionService {
     this.validateSum(result);
 
     return result.transactions.map((t) => ({
-      ...t,
-      category: DEFAULT_CATEGORY,
+      date: t.date,
+      description: t.description,
+      amount: t.amount,
+      type: t.type,
+      category: t.category,
+      subcategory: t.subcategory,
+      confidence: t.confidence,
     }));
   }
 

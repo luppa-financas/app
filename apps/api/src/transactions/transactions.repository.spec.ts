@@ -1,7 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { TransactionsRepository } from './transactions.repository';
+import {
+  TransactionsRepository,
+  TransactionCreateData,
+} from './transactions.repository';
 import { PrismaService } from '../prisma/prisma.service';
-import { ExtractedTransaction } from '../extraction/extraction.types';
 
 const mockPrisma = {
   transaction: {
@@ -10,20 +12,26 @@ const mockPrisma = {
   },
 };
 
-const transactions: ExtractedTransaction[] = [
+const transactions: TransactionCreateData[] = [
   {
     date: '2026-04-05',
     description: 'IFOOD',
     amount: 45.9,
     type: 'debit',
-    category: 'Other',
+    category: 'Alimentação',
+    subcategory: 'Delivery',
+    confidence: 0.95,
+    needsReview: false,
   },
   {
     date: '2026-04-07',
     description: 'UBER',
     amount: 18.5,
     type: 'debit',
-    category: 'Other',
+    category: 'Transporte',
+    subcategory: 'Uber / 99 / Taxi',
+    confidence: 0.9,
+    needsReview: false,
   },
 ];
 
@@ -56,6 +64,9 @@ describe('TransactionsRepository', () => {
           amount: t.amount,
           type: t.type.toUpperCase(),
           category: t.category,
+          subcategory: t.subcategory,
+          confidence: t.confidence,
+          needsReview: t.needsReview,
         })),
       });
     });

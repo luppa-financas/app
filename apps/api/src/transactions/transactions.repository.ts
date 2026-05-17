@@ -1,7 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { Transaction, TransactionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { ExtractedTransaction } from '../extraction/extraction.types';
+
+export interface TransactionCreateData {
+  date: string;
+  description: string;
+  amount: number;
+  type: 'debit' | 'credit';
+  category: string;
+  subcategory: string | null;
+  confidence: number;
+  needsReview: boolean;
+}
 
 @Injectable()
 export class TransactionsRepository {
@@ -9,7 +19,7 @@ export class TransactionsRepository {
 
   async createMany(
     invoiceId: string,
-    transactions: ExtractedTransaction[],
+    transactions: TransactionCreateData[],
   ): Promise<void> {
     if (transactions.length === 0) return;
 
@@ -21,6 +31,9 @@ export class TransactionsRepository {
         amount: t.amount,
         type: t.type.toUpperCase() as TransactionType,
         category: t.category,
+        subcategory: t.subcategory,
+        confidence: t.confidence,
+        needsReview: t.needsReview,
       })),
     });
   }
