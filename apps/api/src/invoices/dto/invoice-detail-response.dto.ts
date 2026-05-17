@@ -32,7 +32,7 @@ export class InvoiceDetailResponseDto {
       filename: invoice.filename,
       status: invoice.status,
       createdAt: invoice.createdAt,
-      transactions: invoice.transactions.map(TransactionDto.from),
+      transactions: invoice.transactions.map((t) => TransactionDto.from(t)),
     };
   }
 }

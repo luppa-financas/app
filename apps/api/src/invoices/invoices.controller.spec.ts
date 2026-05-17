@@ -47,7 +47,12 @@ describe('InvoicesController', () => {
   describe('GET /invoices', () => {
     it('should return list of invoices for the authenticated user', async () => {
       const invoices = [
-        { id: 'inv-1', filename: 'fatura.pdf', status: 'DONE', createdAt: new Date() },
+        {
+          id: 'inv-1',
+          filename: 'fatura.pdf',
+          status: 'DONE',
+          createdAt: new Date(),
+        },
       ];
       mockInvoicesService.findAll.mockResolvedValue(invoices);
 
@@ -67,26 +72,50 @@ describe('InvoicesController', () => {
         filename: 'fatura.pdf',
         status: 'DONE',
         createdAt,
-        transactions: [{ id: 'tx-1', invoiceId: 'inv-1', date: txDate, description: 'UBER', amount: 18.5, type: 'DEBIT', category: 'Other', createdAt: new Date() }],
+        transactions: [
+          {
+            id: 'tx-1',
+            invoiceId: 'inv-1',
+            date: txDate,
+            description: 'UBER',
+            amount: 18.5,
+            type: 'DEBIT',
+            category: 'Other',
+            createdAt: new Date(),
+          },
+        ],
       };
       mockInvoicesService.findById.mockResolvedValue(invoice);
 
       const result = await controller.findOne('inv-1', 'user-1');
 
-      expect(mockInvoicesService.findById).toHaveBeenCalledWith('inv-1', 'user-1');
+      expect(mockInvoicesService.findById).toHaveBeenCalledWith(
+        'inv-1',
+        'user-1',
+      );
       expect(result).toEqual({
         id: 'inv-1',
         filename: 'fatura.pdf',
         status: 'DONE',
         createdAt,
-        transactions: [{ date: txDate, description: 'UBER', amount: 18.5, type: 'DEBIT', category: 'Other' }],
+        transactions: [
+          {
+            date: txDate,
+            description: 'UBER',
+            amount: 18.5,
+            type: 'DEBIT',
+            category: 'Other',
+          },
+        ],
       });
     });
 
     it('should propagate NotFoundException when invoice is not found', async () => {
       mockInvoicesService.findById.mockRejectedValue(new NotFoundException());
 
-      await expect(controller.findOne('inv-1', 'user-1')).rejects.toThrow(NotFoundException);
+      await expect(controller.findOne('inv-1', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

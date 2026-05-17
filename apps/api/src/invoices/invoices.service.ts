@@ -4,7 +4,10 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Invoice } from '@prisma/client';
 import { StorageService } from '../storage/storage.service';
 import { INVOICES_BUCKET } from '../storage/storage.constants';
-import { InvoicesRepository, InvoiceWithTransactions } from './invoices.repository';
+import {
+  InvoicesRepository,
+  InvoiceWithTransactions,
+} from './invoices.repository';
 import { InvoiceCreatedEvent } from './events/invoice-created.event';
 
 @Injectable()
@@ -51,7 +54,10 @@ export class InvoicesService {
   }
 
   async findById(id: string, userId: string): Promise<InvoiceWithTransactions> {
-    const invoice = await this.invoicesRepository.findByIdWithTransactions(id, userId);
+    const invoice = await this.invoicesRepository.findByIdWithTransactions(
+      id,
+      userId,
+    );
     if (!invoice) throw new NotFoundException(`Invoice ${id} not found`);
     return invoice;
   }

@@ -104,7 +104,10 @@ describe('InvoicesRepository', () => {
       };
       mockPrisma.invoice.findFirst.mockResolvedValue(invoice);
 
-      const result = await repository.findByIdWithTransactions('inv-1', 'user-1');
+      const result = await repository.findByIdWithTransactions(
+        'inv-1',
+        'user-1',
+      );
 
       expect(mockPrisma.invoice.findFirst).toHaveBeenCalledWith({
         where: { id: 'inv-1', userId: 'user-1' },
@@ -116,7 +119,10 @@ describe('InvoicesRepository', () => {
     it('should return null when invoice belongs to another user', async () => {
       mockPrisma.invoice.findFirst.mockResolvedValue(null);
 
-      const result = await repository.findByIdWithTransactions('inv-1', 'other-user');
+      const result = await repository.findByIdWithTransactions(
+        'inv-1',
+        'other-user',
+      );
 
       expect(result).toBeNull();
     });

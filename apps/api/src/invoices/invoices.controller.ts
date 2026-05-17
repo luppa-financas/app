@@ -41,7 +41,7 @@ export class InvoicesController {
   @Get()
   async findAll(@CurrentUser() userId: string): Promise<InvoiceResponseDto[]> {
     const invoices = await this.invoicesService.findAll(userId);
-    return invoices.map(InvoiceResponseDto.from);
+    return invoices.map((i) => InvoiceResponseDto.from(i));
   }
 
   @Get(':id')

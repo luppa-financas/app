@@ -29,7 +29,10 @@ export class InvoicesRepository {
     });
   }
 
-  async findByIdWithTransactions(id: string, userId: string): Promise<InvoiceWithTransactions | null> {
+  async findByIdWithTransactions(
+    id: string,
+    userId: string,
+  ): Promise<InvoiceWithTransactions | null> {
     return this.prisma.invoice.findFirst({
       where: { id, userId },
       include: { transactions: true },
