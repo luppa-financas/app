@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Invoice } from '@prisma/client';
+import { Invoice, InvoiceStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface CreateInvoiceData {
@@ -18,5 +18,9 @@ export class InvoicesRepository {
 
   async findById(id: string, userId: string): Promise<Invoice | null> {
     return this.prisma.invoice.findFirst({ where: { id, userId } });
+  }
+
+  async updateStatus(id: string, status: InvoiceStatus): Promise<void> {
+    await this.prisma.invoice.update({ where: { id }, data: { status } });
   }
 }
