@@ -1,4 +1,11 @@
-import { BadRequestException, Controller, Headers, Post, RawBodyRequest, Req } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Headers,
+  Post,
+  RawBodyRequest,
+  Req,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { Public } from '../auth/public.decorator';
 import { UsersService } from './users.service';
@@ -24,7 +31,10 @@ export class UsersController {
   ): Promise<void> {
     let event: ClerkWebhookEvent;
     try {
-      event = this.webhookVerifier.verify(req.rawBody!, headers) as ClerkWebhookEvent;
+      event = this.webhookVerifier.verify(
+        req.rawBody!,
+        headers,
+      ) as ClerkWebhookEvent;
     } catch {
       throw new BadRequestException('Invalid webhook signature');
     }

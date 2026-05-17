@@ -13,8 +13,10 @@ import { AUTH_CLIENT } from './auth.constants';
       useFactory: (config: ConfigService) => {
         const secretKey = config.getOrThrow<string>('CLERK_SECRET_KEY');
         return {
-          verifyToken: (token: string, options?: { authorizedParties?: string[] }) =>
-            verifyToken(token, { secretKey, ...options }),
+          verifyToken: (
+            token: string,
+            options?: { authorizedParties?: string[] },
+          ) => verifyToken(token, { secretKey, ...options }),
         };
       },
     },

@@ -11,7 +11,10 @@ import { IS_PUBLIC_KEY } from './public.decorator';
 import { AUTH_CLIENT } from './auth.constants';
 
 export interface ClerkClient {
-  verifyToken(token: string, options?: { authorizedParties?: string[] }): Promise<{ sub: string }>;
+  verifyToken(
+    token: string,
+    options?: { authorizedParties?: string[] },
+  ): Promise<{ sub: string }>;
 }
 
 interface AuthenticatedRequest {

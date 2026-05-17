@@ -28,21 +28,37 @@ describe('StorageService', () => {
   describe('upload', () => {
     it('should return the file path on success', async () => {
       mockSupabaseClient.storage.from.mockReturnValue({
-        upload: jest.fn().mockResolvedValue({ data: { path: 'user-1/file.pdf' }, error: null }),
+        upload: jest.fn().mockResolvedValue({
+          data: { path: 'user-1/file.pdf' },
+          error: null,
+        }),
       });
 
-      const result = await service.upload('invoices', 'user-1/file.pdf', Buffer.from('pdf'), 'application/pdf');
+      const result = await service.upload(
+        'invoices',
+        'user-1/file.pdf',
+        Buffer.from('pdf'),
+        'application/pdf',
+      );
 
       expect(result).toBe('user-1/file.pdf');
     });
 
     it('should throw InternalServerErrorException when Supabase returns an error', async () => {
       mockSupabaseClient.storage.from.mockReturnValue({
-        upload: jest.fn().mockResolvedValue({ data: null, error: { message: 'bucket not found' } }),
+        upload: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'bucket not found' },
+        }),
       });
 
       await expect(
-        service.upload('invoices', 'user-1/file.pdf', Buffer.from('pdf'), 'application/pdf'),
+        service.upload(
+          'invoices',
+          'user-1/file.pdf',
+          Buffer.from('pdf'),
+          'application/pdf',
+        ),
       ).rejects.toThrow(InternalServerErrorException);
     });
   });
@@ -51,7 +67,9 @@ describe('StorageService', () => {
     it('should return a Buffer with the file content on success', async () => {
       const fileContent = Buffer.from('pdf content');
       mockSupabaseClient.storage.from.mockReturnValue({
-        download: jest.fn().mockResolvedValue({ data: new Blob([fileContent]), error: null }),
+        download: jest
+          .fn()
+          .mockResolvedValue({ data: new Blob([fileContent]), error: null }),
       });
 
       const result = await service.download('invoices', 'user-1/file.pdf');
@@ -61,7 +79,10 @@ describe('StorageService', () => {
 
     it('should throw InternalServerErrorException when Supabase returns an error', async () => {
       mockSupabaseClient.storage.from.mockReturnValue({
-        download: jest.fn().mockResolvedValue({ data: null, error: { message: 'object not found' } }),
+        download: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'object not found' },
+        }),
       });
 
       await expect(
@@ -83,7 +104,10 @@ describe('StorageService', () => {
 
     it('should throw InternalServerErrorException when Supabase returns an error', async () => {
       mockSupabaseClient.storage.from.mockReturnValue({
-        remove: jest.fn().mockResolvedValue({ data: null, error: { message: 'object not found' } }),
+        remove: jest.fn().mockResolvedValue({
+          data: null,
+          error: { message: 'object not found' },
+        }),
       });
 
       await expect(

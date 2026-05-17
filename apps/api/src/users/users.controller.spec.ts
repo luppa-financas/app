@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, RawBodyRequest } from '@nestjs/common';
+import { Request } from 'express';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { WebhookVerifier } from './webhook-verifier';
@@ -11,11 +12,17 @@ const mockUsersService = {
 
 const mockWebhookVerifier = { verify: jest.fn() };
 
-const rawBody = Buffer.from(JSON.stringify({ type: 'user.created', data: { id: 'user_1' } }));
-const headers = { 'svix-id': 'msg_1', 'svix-timestamp': '1716000000', 'svix-signature': 'v1,abc' };
+const rawBody = Buffer.from(
+  JSON.stringify({ type: 'user.created', data: { id: 'user_1' } }),
+);
+const headers = {
+  'svix-id': 'msg_1',
+  'svix-timestamp': '1716000000',
+  'svix-signature': 'v1,abc',
+};
 
-function makeReq(body: Buffer) {
-  return { rawBody: body } as any;
+function makeReq(body: Buffer): RawBodyRequest<Request> {
+  return { rawBody: body } as RawBodyRequest<Request>;
 }
 
 describe('UsersController', () => {
@@ -35,7 +42,10 @@ describe('UsersController', () => {
   });
 
   it('should call handleUserCreated on user.created with valid signature', async () => {
-    mockWebhookVerifier.verify.mockReturnValue({ type: 'user.created', data: { id: 'user_1' } });
+    mockWebhookVerifier.verify.mockReturnValue({
+      type: 'user.created',
+      data: { id: 'user_1' },
+    });
 
     await controller.handleWebhook(makeReq(rawBody), headers);
 
@@ -44,8 +54,13 @@ describe('UsersController', () => {
   });
 
   it('should call handleUserDeleted on user.deleted with valid signature', async () => {
-    const body = Buffer.from(JSON.stringify({ type: 'user.deleted', data: { id: 'user_1' } }));
-    mockWebhookVerifier.verify.mockReturnValue({ type: 'user.deleted', data: { id: 'user_1' } });
+    const body = Buffer.from(
+      JSON.stringify({ type: 'user.deleted', data: { id: 'user_1' } }),
+    );
+    mockWebhookVerifier.verify.mockReturnValue({
+      type: 'user.deleted',
+      data: { id: 'user_1' },
+    });
 
     await controller.handleWebhook(makeReq(body), headers);
 
@@ -54,14 +69,21 @@ describe('UsersController', () => {
   });
 
   it('should throw BadRequestException when signature is invalid', async () => {
-    mockWebhookVerifier.verify.mockImplementation(() => { throw new Error('Invalid signature'); });
+    mockWebhookVerifier.verify.mockImplementation(() => {
+      throw new Error('Invalid signature');
+    });
 
-    await expect(controller.handleWebhook(makeReq(rawBody), headers)).rejects.toThrow(BadRequestException);
+    await expect(
+      controller.handleWebhook(makeReq(rawBody), headers),
+    ).rejects.toThrow(BadRequestException);
     expect(mockUsersService.handleUserCreated).not.toHaveBeenCalled();
   });
 
   it('should return 200 without calling service for unknown event types', async () => {
-    mockWebhookVerifier.verify.mockReturnValue({ type: 'session.created', data: { id: 'user_1' } });
+    mockWebhookVerifier.verify.mockReturnValue({
+      type: 'session.created',
+      data: { id: 'user_1' },
+    });
 
     await controller.handleWebhook(makeReq(rawBody), headers);
 

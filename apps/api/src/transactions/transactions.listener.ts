@@ -22,13 +22,28 @@ export class TransactionsListener {
   @OnEvent('invoice.created')
   async handleInvoiceCreated(event: InvoiceCreatedEvent): Promise<void> {
     try {
-      const pdf = await this.storageService.download(INVOICES_BUCKET, event.storagePath);
+      const pdf = await this.storageService.download(
+        INVOICES_BUCKET,
+        event.storagePath,
+      );
       const transactions = await this.extractionService.extract(pdf);
-      await this.transactionsRepository.createMany(event.invoiceId, transactions);
-      await this.invoicesRepository.updateStatus(event.invoiceId, InvoiceStatus.DONE);
+      await this.transactionsRepository.createMany(
+        event.invoiceId,
+        transactions,
+      );
+      await this.invoicesRepository.updateStatus(
+        event.invoiceId,
+        InvoiceStatus.DONE,
+      );
     } catch (error) {
-      this.logger.error(`Failed to process invoice ${event.invoiceId}`, error instanceof Error ? error.stack : String(error));
-      await this.invoicesRepository.updateStatus(event.invoiceId, InvoiceStatus.FAILED);
+      this.logger.error(
+        `Failed to process invoice ${event.invoiceId}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      await this.invoicesRepository.updateStatus(
+        event.invoiceId,
+        InvoiceStatus.FAILED,
+      );
     }
   }
 }

@@ -45,7 +45,11 @@ describe('InvoicesRepository', () => {
 
       expect(result).toEqual(invoice);
       expect(mockPrisma.invoice.create).toHaveBeenCalledWith({
-        data: { userId: 'user-1', filename: 'fatura.pdf', storagePath: 'invoices/user-1/fatura.pdf' },
+        data: {
+          userId: 'user-1',
+          filename: 'fatura.pdf',
+          storagePath: 'invoices/user-1/fatura.pdf',
+        },
       });
     });
   });

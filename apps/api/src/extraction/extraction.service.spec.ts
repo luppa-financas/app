@@ -38,8 +38,18 @@ describe('ExtractionService', () => {
   it('should return extracted transactions on success', async () => {
     mockAnthropicClient.messages.create.mockResolvedValue(
       makeToolUseResponse(100.0, [
-        { date: '2025-04-10', description: 'UBER *TRIP', amount: 60.0, type: 'debit' },
-        { date: '2025-04-15', description: 'NETFLIX', amount: 40.0, type: 'debit' },
+        {
+          date: '2025-04-10',
+          description: 'UBER *TRIP',
+          amount: 60.0,
+          type: 'debit',
+        },
+        {
+          date: '2025-04-15',
+          description: 'NETFLIX',
+          amount: 40.0,
+          type: 'debit',
+        },
       ]),
     );
 
@@ -58,17 +68,31 @@ describe('ExtractionService', () => {
 
   it('should throw when Claude returns text instead of tool_use', async () => {
     mockAnthropicClient.messages.create.mockResolvedValue({
-      content: [{ type: 'text', text: 'I found the following transactions...' }],
+      content: [
+        { type: 'text', text: 'I found the following transactions...' },
+      ],
     });
 
-    await expect(service.extract(pdf)).rejects.toThrow('Unexpected response format from Claude');
+    await expect(service.extract(pdf)).rejects.toThrow(
+      'Unexpected response format from Claude',
+    );
   });
 
   it('should throw when transaction sum diverges from invoiceTotal', async () => {
     mockAnthropicClient.messages.create.mockResolvedValue(
       makeToolUseResponse(100.0, [
-        { date: '2025-04-10', description: 'UBER *TRIP', amount: 60.0, type: 'debit' },
-        { date: '2025-04-15', description: 'NETFLIX', amount: 39.0, type: 'debit' },
+        {
+          date: '2025-04-10',
+          description: 'UBER *TRIP',
+          amount: 60.0,
+          type: 'debit',
+        },
+        {
+          date: '2025-04-15',
+          description: 'NETFLIX',
+          amount: 39.0,
+          type: 'debit',
+        },
       ]),
     );
 
@@ -76,7 +100,9 @@ describe('ExtractionService', () => {
   });
 
   it('should propagate Anthropic SDK errors', async () => {
-    mockAnthropicClient.messages.create.mockRejectedValue(new Error('API error'));
+    mockAnthropicClient.messages.create.mockRejectedValue(
+      new Error('API error'),
+    );
 
     await expect(service.extract(pdf)).rejects.toThrow('API error');
   });

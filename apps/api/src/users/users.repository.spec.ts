@@ -25,11 +25,16 @@ describe('UsersRepository', () => {
   });
 
   it('should create a user with the given id', async () => {
-    mockPrisma.user.create.mockResolvedValue({ id: 'user_1', createdAt: new Date() });
+    mockPrisma.user.create.mockResolvedValue({
+      id: 'user_1',
+      createdAt: new Date(),
+    });
 
     await repository.create('user_1');
 
-    expect(mockPrisma.user.create).toHaveBeenCalledWith({ data: { id: 'user_1' } });
+    expect(mockPrisma.user.create).toHaveBeenCalledWith({
+      data: { id: 'user_1' },
+    });
   });
 
   it('should delete a user by id', async () => {
@@ -37,6 +42,8 @@ describe('UsersRepository', () => {
 
     await repository.delete('user_1');
 
-    expect(mockPrisma.user.delete).toHaveBeenCalledWith({ where: { id: 'user_1' } });
+    expect(mockPrisma.user.delete).toHaveBeenCalledWith({
+      where: { id: 'user_1' },
+    });
   });
 });
