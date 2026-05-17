@@ -3,10 +3,8 @@ import {
   Controller,
   Headers,
   Post,
-  RawBodyRequest,
   Req,
 } from '@nestjs/common';
-import { Request } from 'express';
 import { Public } from '../auth/public.decorator';
 import { UsersService } from './users.service';
 import { WebhookVerifier } from './webhook-verifier';
@@ -26,7 +24,7 @@ export class UsersController {
   @Public()
   @Post('clerk')
   async handleWebhook(
-    @Req() req: RawBodyRequest<Request>,
+    @Req() req: { rawBody?: Buffer },
     @Headers() headers: Record<string, string>,
   ): Promise<void> {
     let event: ClerkWebhookEvent;
