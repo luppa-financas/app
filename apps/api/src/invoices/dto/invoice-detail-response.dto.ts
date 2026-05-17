@@ -7,6 +7,9 @@ class TransactionDto {
   amount: number;
   type: string;
   category: string | null;
+  subcategory: string | null;
+  confidence: number | null;
+  needsReview: boolean;
 
   static from(t: Transaction): TransactionDto {
     return {
@@ -15,6 +18,9 @@ class TransactionDto {
       amount: Number(t.amount),
       type: t.type,
       category: t.category,
+      subcategory: t.subcategory,
+      confidence: t.confidence,
+      needsReview: t.needsReview,
     };
   }
 }
