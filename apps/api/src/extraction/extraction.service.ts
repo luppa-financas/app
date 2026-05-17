@@ -79,8 +79,11 @@ export class ExtractionService {
 
     const result = toolUse.input as ClaudeExtractionResult;
 
+    if (!Array.isArray(result.transactions)) {
+      throw new Error(`Claude returned malformed extraction result: ${JSON.stringify(result)}`);
+    }
+
     this.validateSum(result);
-    this.validateDuplicates(result.transactions);
 
     return result.transactions.map((t) => ({ ...t, category: DEFAULT_CATEGORY }));
   }
@@ -91,15 +94,6 @@ export class ExtractionService {
       throw new Error(
         `Sum check failed: transactions sum ${debitSum.toFixed(2)} differs from invoiceTotal ${invoiceTotal.toFixed(2)}`,
       );
-    }
-  }
-
-  private validateDuplicates(transactions: ClaudeExtractionResult['transactions']): void {
-    const seen = new Set<string>();
-    for (const t of transactions) {
-      const key = `${t.date}|${t.description}|${t.amount}`;
-      if (seen.has(key)) throw new Error('Duplicate transactions detected in extraction result');
-      seen.add(key);
     }
   }
 }

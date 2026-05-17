@@ -75,17 +75,6 @@ describe('ExtractionService', () => {
     await expect(service.extract(pdf)).rejects.toThrow('Sum check failed');
   });
 
-  it('should throw when duplicate transactions are detected', async () => {
-    mockAnthropicClient.messages.create.mockResolvedValue(
-      makeToolUseResponse(120.0, [
-        { date: '2025-04-10', description: 'UBER *TRIP', amount: 60.0, type: 'debit' },
-        { date: '2025-04-10', description: 'UBER *TRIP', amount: 60.0, type: 'debit' },
-      ]),
-    );
-
-    await expect(service.extract(pdf)).rejects.toThrow('Duplicate transactions detected');
-  });
-
   it('should propagate Anthropic SDK errors', async () => {
     mockAnthropicClient.messages.create.mockRejectedValue(new Error('API error'));
 
