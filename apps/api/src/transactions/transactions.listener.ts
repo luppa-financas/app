@@ -5,6 +5,7 @@ import { InvoiceCreatedEvent } from '../invoices/events/invoice-created.event';
 import { StorageService } from '../storage/storage.service';
 import { INVOICES_BUCKET } from '../storage/storage.constants';
 import { ExtractionService } from '../extraction/extraction.service';
+import { CategorizationService } from '../categorization/categorization.service';
 import { TransactionsRepository } from './transactions.repository';
 import { InvoicesRepository } from '../invoices/invoices.repository';
 
@@ -15,6 +16,7 @@ export class TransactionsListener {
   constructor(
     private readonly storageService: StorageService,
     private readonly extractionService: ExtractionService,
+    private readonly categorizationService: CategorizationService,
     private readonly transactionsRepository: TransactionsRepository,
     private readonly invoicesRepository: InvoicesRepository,
   ) {}
@@ -26,7 +28,13 @@ export class TransactionsListener {
         INVOICES_BUCKET,
         event.storagePath,
       );
-      const transactions = await this.extractionService.extract(pdf);
+      const extracted = await this.extractionService.extract(pdf);
+      const classifications =
+        await this.categorizationService.classifyMany(extracted);
+      const transactions = extracted.map((t, i) => ({
+        ...t,
+        ...classifications[i],
+      }));
       await this.transactionsRepository.createMany(
         event.invoiceId,
         transactions,

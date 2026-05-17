@@ -5,6 +5,7 @@ import { TransactionsRepository } from './transactions.repository';
 import { InvoicesRepository } from '../invoices/invoices.repository';
 import { StorageService } from '../storage/storage.service';
 import { ExtractionService } from '../extraction/extraction.service';
+import { CategorizationService } from '../categorization/categorization.service';
 import { InvoiceCreatedEvent } from '../invoices/events/invoice-created.event';
 import { ExtractedTransaction } from '../extraction/extraction.types';
 
@@ -12,6 +13,7 @@ const mockTransactionsRepository = { createMany: jest.fn() };
 const mockInvoicesRepository = { updateStatus: jest.fn() };
 const mockStorageService = { download: jest.fn() };
 const mockExtractionService = { extract: jest.fn() };
+const mockCategorizationService = { classifyMany: jest.fn() };
 
 const event = new InvoiceCreatedEvent(
   'inv-1',
@@ -25,9 +27,17 @@ const extracted: ExtractedTransaction[] = [
     description: 'IFOOD',
     amount: 45.9,
     type: 'debit',
-    category: 'Other',
+    category: 'Alimentação',
+    subcategory: 'Delivery',
+    confidence: 0.95,
   },
 ];
+const classified = {
+  category: 'Alimentação',
+  subcategory: 'Delivery',
+  confidence: 0.95,
+  needsReview: false,
+};
 
 describe('TransactionsListener', () => {
   let listener: TransactionsListener;
@@ -43,6 +53,7 @@ describe('TransactionsListener', () => {
         { provide: InvoicesRepository, useValue: mockInvoicesRepository },
         { provide: StorageService, useValue: mockStorageService },
         { provide: ExtractionService, useValue: mockExtractionService },
+        { provide: CategorizationService, useValue: mockCategorizationService },
       ],
     }).compile();
 
@@ -50,9 +61,10 @@ describe('TransactionsListener', () => {
     jest.resetAllMocks();
   });
 
-  it('should download PDF, extract transactions, save them and mark invoice as DONE', async () => {
+  it('should download PDF, extract transactions, classify them, save them and mark invoice as DONE', async () => {
     mockStorageService.download.mockResolvedValue(pdfBuffer);
     mockExtractionService.extract.mockResolvedValue(extracted);
+    mockCategorizationService.classifyMany.mockResolvedValue([classified]);
 
     await listener.handleInvoiceCreated(event);
 
@@ -61,9 +73,12 @@ describe('TransactionsListener', () => {
       event.storagePath,
     );
     expect(mockExtractionService.extract).toHaveBeenCalledWith(pdfBuffer);
+    expect(mockCategorizationService.classifyMany).toHaveBeenCalledWith(
+      extracted,
+    );
     expect(mockTransactionsRepository.createMany).toHaveBeenCalledWith(
       'inv-1',
-      extracted,
+      [{ ...extracted[0], ...classified }],
     );
     expect(mockInvoicesRepository.updateStatus).toHaveBeenCalledWith(
       'inv-1',

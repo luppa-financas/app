@@ -31,10 +31,24 @@ model Transaction {
   invoice     Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   date        DateTime
   description String
-  amount      Decimal  @db.Decimal(10, 2)
+  amount      Decimal         @db.Decimal(10, 2)
   type        TransactionType
   category    String?
+  subcategory String?
+  confidence  Float?
+  needsReview Boolean         @default(false)
   createdAt   DateTime        @default(now())
+}
+
+model MerchantRule {
+  id          String   @id @default(cuid())
+  pattern     String   @unique
+  category    String
+  subcategory String?
+  confidence  Float
+  voteCount   Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 enum InvoiceStatus {

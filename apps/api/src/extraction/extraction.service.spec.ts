@@ -43,12 +43,18 @@ describe('ExtractionService', () => {
           description: 'UBER *TRIP',
           amount: 60.0,
           type: 'debit',
+          category: 'Transporte',
+          subcategory: 'Uber / 99 / Taxi',
+          confidence: 0.95,
         },
         {
           date: '2025-04-15',
           description: 'NETFLIX',
           amount: 40.0,
           type: 'debit',
+          category: 'Assinaturas',
+          subcategory: 'Streaming',
+          confidence: 0.98,
         },
       ]),
     );
@@ -61,9 +67,11 @@ describe('ExtractionService', () => {
       description: 'UBER *TRIP',
       amount: 60.0,
       type: 'debit',
-      category: 'Other',
+      category: 'Transporte',
+      subcategory: 'Uber / 99 / Taxi',
+      confidence: 0.95,
     });
-    expect(result[1].category).toBe('Other');
+    expect(result[1].category).toBe('Assinaturas');
   });
 
   it('should throw when Claude returns text instead of tool_use', async () => {
