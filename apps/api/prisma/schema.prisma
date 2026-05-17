@@ -17,7 +17,7 @@ model User {
 model Invoice {
   id           String        @id @default(cuid())
   userId       String
-  user         User          @relation(fields: [userId], references: [id])
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   filename     String
   storagePath  String
   status       InvoiceStatus @default(PENDING)
@@ -28,7 +28,7 @@ model Invoice {
 model Transaction {
   id          String          @id @default(cuid())
   invoiceId   String
-  invoice     Invoice         @relation(fields: [invoiceId], references: [id])
+  invoice     Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   date        DateTime
   description String
   amount      Decimal  @db.Decimal(10, 2)

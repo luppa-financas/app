@@ -16,10 +16,14 @@ export class InvoicesService {
     private readonly eventEmitter: EventEmitter2,
     config: ConfigService,
   ) {
-    this.envPrefix = config.get<string>('NODE_ENV') === 'production' ? 'prod' : 'dev';
+    this.envPrefix =
+      config.get<string>('NODE_ENV') === 'production' ? 'prod' : 'dev';
   }
 
-  async create(userId: string, file: Express.Multer.File): Promise<{ invoiceId: string }> {
+  async create(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<{ invoiceId: string }> {
     const storagePath = await this.storageService.upload(
       INVOICES_BUCKET,
       `${this.envPrefix}/${userId}/${Date.now()}-${file.originalname}`,
@@ -33,7 +37,10 @@ export class InvoicesService {
       storagePath,
     });
 
-    this.eventEmitter.emit('invoice.created', new InvoiceCreatedEvent(invoice.id, userId, storagePath));
+    this.eventEmitter.emit(
+      'invoice.created',
+      new InvoiceCreatedEvent(invoice.id, userId, storagePath),
+    );
 
     return { invoiceId: invoice.id };
   }

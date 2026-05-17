@@ -7,7 +7,10 @@ import { ExtractedTransaction } from '../extraction/extraction.types';
 export class TransactionsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createMany(invoiceId: string, transactions: ExtractedTransaction[]): Promise<void> {
+  async createMany(
+    invoiceId: string,
+    transactions: ExtractedTransaction[],
+  ): Promise<void> {
     if (transactions.length === 0) return;
 
     await this.prisma.transaction.createMany({

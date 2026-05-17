@@ -10,7 +10,9 @@ import { ANTHROPIC_CLIENT } from './extraction.constants';
       provide: ANTHROPIC_CLIENT,
       inject: [ConfigService],
       useFactory: (config: ConfigService) =>
-        new Anthropic({ apiKey: config.getOrThrow<string>('ANTHROPIC_API_KEY') }),
+        new Anthropic({
+          apiKey: config.getOrThrow<string>('ANTHROPIC_API_KEY'),
+        }),
     },
     ExtractionService,
   ],

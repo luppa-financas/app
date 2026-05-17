@@ -24,7 +24,10 @@ async function createService(nodeEnv: string): Promise<InvoicesService> {
       { provide: StorageService, useValue: mockStorageService },
       { provide: InvoicesRepository, useValue: mockInvoicesRepository },
       { provide: EventEmitter2, useValue: mockEventEmitter },
-      { provide: ConfigService, useValue: { get: jest.fn().mockReturnValue(nodeEnv) } },
+      {
+        provide: ConfigService,
+        useValue: { get: jest.fn().mockReturnValue(nodeEnv) },
+      },
     ],
   }).compile();
   return module.get<InvoicesService>(InvoicesService);
@@ -42,7 +45,11 @@ describe('InvoicesService', () => {
 
     it('should upload under dev/ prefix, create invoice, emit event and return invoiceId', async () => {
       mockStorageService.upload.mockResolvedValue('dev/user-1/fatura.pdf');
-      mockInvoicesRepository.create.mockResolvedValue({ id: 'inv-1', userId: 'user-1', storagePath: 'dev/user-1/fatura.pdf' });
+      mockInvoicesRepository.create.mockResolvedValue({
+        id: 'inv-1',
+        userId: 'user-1',
+        storagePath: 'dev/user-1/fatura.pdf',
+      });
 
       const result = await service.create('user-1', file);
 
@@ -65,9 +72,13 @@ describe('InvoicesService', () => {
     });
 
     it('should not create invoice if upload fails', async () => {
-      mockStorageService.upload.mockRejectedValue(new InternalServerErrorException('upload failed'));
+      mockStorageService.upload.mockRejectedValue(
+        new InternalServerErrorException('upload failed'),
+      );
 
-      await expect(service.create('user-1', file)).rejects.toThrow(InternalServerErrorException);
+      await expect(service.create('user-1', file)).rejects.toThrow(
+        InternalServerErrorException,
+      );
       expect(mockInvoicesRepository.create).not.toHaveBeenCalled();
       expect(mockEventEmitter.emit).not.toHaveBeenCalled();
     });
@@ -90,7 +101,11 @@ describe('InvoicesService', () => {
 
     it('should upload under prod/ prefix', async () => {
       mockStorageService.upload.mockResolvedValue('prod/user-1/fatura.pdf');
-      mockInvoicesRepository.create.mockResolvedValue({ id: 'inv-1', userId: 'user-1', storagePath: 'prod/user-1/fatura.pdf' });
+      mockInvoicesRepository.create.mockResolvedValue({
+        id: 'inv-1',
+        userId: 'user-1',
+        storagePath: 'prod/user-1/fatura.pdf',
+      });
 
       await service.create('user-1', file);
 

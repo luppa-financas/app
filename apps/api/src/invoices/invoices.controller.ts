@@ -1,4 +1,12 @@
-import { Controller, FileTypeValidator, MaxFileSizeValidator, ParseFilePipe, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  FileTypeValidator,
+  MaxFileSizeValidator,
+  ParseFilePipe,
+  Post,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { InvoicesService } from './invoices.service';

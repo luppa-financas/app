@@ -11,8 +11,20 @@ const mockPrisma = {
 };
 
 const transactions: ExtractedTransaction[] = [
-  { date: '2026-04-05', description: 'IFOOD', amount: 45.9, type: 'debit', category: 'Other' },
-  { date: '2026-04-07', description: 'UBER', amount: 18.5, type: 'debit', category: 'Other' },
+  {
+    date: '2026-04-05',
+    description: 'IFOOD',
+    amount: 45.9,
+    type: 'debit',
+    category: 'Other',
+  },
+  {
+    date: '2026-04-07',
+    description: 'UBER',
+    amount: 18.5,
+    type: 'debit',
+    category: 'Other',
+  },
 ];
 
 describe('TransactionsRepository', () => {
