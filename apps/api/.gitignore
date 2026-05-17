@@ -3,3 +3,6 @@ node_modules
 .env
 
 /generated/prisma
+
+# Real invoice PDFs — sensitive data, never commit
+src/extraction/testdata/*.pdf
