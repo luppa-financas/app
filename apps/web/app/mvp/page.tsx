@@ -38,6 +38,9 @@ export default function DashboardPage() {
   const [detail, setDetail] = useState<InvoiceDetail | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterSubcategory, setFilterSubcategory] = useState('');
+  const [filterType, setFilterType] = useState<'ALL' | 'DEBIT' | 'CREDIT'>('ALL');
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const headers = useCallback(async () => {
@@ -67,6 +70,9 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!selectedId) return;
     fetchDetail(selectedId);
+    setFilterCategory('');
+    setFilterSubcategory('');
+    setFilterType('ALL');
   }, [selectedId, fetchDetail]);
 
   const startPolling = useCallback((id: string) => {
@@ -104,7 +110,26 @@ export default function DashboardPage() {
     }
   }
 
-  const debits = detail?.transactions.filter((t) => t.type === 'DEBIT') ?? [];
+  const allTransactions = detail?.transactions ?? [];
+
+  const categories = [...new Set(allTransactions.map((t) => t.category))].sort();
+  const subcategories = [...new Set(
+    allTransactions
+      .filter((t) => !filterCategory || t.category === filterCategory)
+      .map((t) => t.subcategory)
+      .filter((s): s is string => s !== null)
+  )].sort();
+
+  const filteredTransactions = allTransactions.filter((t) => {
+    if (filterCategory && t.category !== filterCategory) return false;
+    if (filterSubcategory && t.subcategory !== filterSubcategory) return false;
+    if (filterType !== 'ALL' && t.type !== filterType) return false;
+    return true;
+  });
+
+  const hasFilters = filterCategory !== '' || filterSubcategory !== '' || filterType !== 'ALL';
+
+  const debits = filteredTransactions.filter((t) => t.type === 'DEBIT');
 
   const pieData = debits.length
     ? Object.entries(
@@ -174,6 +199,48 @@ export default function DashboardPage() {
                 Total gasto: <strong className="text-gray-900">R$ {total.toFixed(2)}</strong>
               </span>
             </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              <select
+                value={filterCategory}
+                onChange={(e) => { setFilterCategory(e.target.value); setFilterSubcategory(''); }}
+                className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 text-gray-700 bg-white"
+              >
+                <option value="">Todas as categorias</option>
+                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+
+              {subcategories.length > 0 && (
+                <select
+                  value={filterSubcategory}
+                  onChange={(e) => setFilterSubcategory(e.target.value)}
+                  className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 text-gray-700 bg-white"
+                >
+                  <option value="">Todas as subcategorias</option>
+                  {subcategories.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              )}
+
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value as 'ALL' | 'DEBIT' | 'CREDIT')}
+                className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 text-gray-700 bg-white"
+              >
+                <option value="ALL">Todos os tipos</option>
+                <option value="DEBIT">Saídas</option>
+                <option value="CREDIT">Entradas</option>
+              </select>
+
+              {hasFilters && (
+                <button
+                  onClick={() => { setFilterCategory(''); setFilterSubcategory(''); setFilterType('ALL'); }}
+                  className="text-sm text-indigo-600 hover:text-indigo-800 px-2"
+                >
+                  Limpar filtros
+                </button>
+              )}
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -185,7 +252,7 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {detail.transactions.map((t) => (
+                  {filteredTransactions.map((t) => (
                     <tr key={t.id} className="border-b last:border-0 hover:bg-gray-50">
                       <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">
                         {new Date(t.date).toLocaleDateString('pt-BR')}
