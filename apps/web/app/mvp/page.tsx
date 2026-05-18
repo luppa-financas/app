@@ -232,7 +232,7 @@ export default function DashboardPage() {
             <ul className="mt-4 space-y-2">
               {pieData
                 .sort((a, b) => b.value - a.value)
-                .map((entry, i) => (
+                .map((entry) => (
                   <li key={entry.name} className="flex items-center justify-between text-sm">
                     <span className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: COLORS[pieData.indexOf(entry) % COLORS.length] }} />
