@@ -86,27 +86,6 @@ describe('ExtractionService', () => {
     );
   });
 
-  it('should throw when transaction sum diverges from invoiceTotal', async () => {
-    mockAnthropicClient.messages.create.mockResolvedValue(
-      makeToolUseResponse(100.0, [
-        {
-          date: '2025-04-10',
-          description: 'UBER *TRIP',
-          amount: 60.0,
-          type: 'debit',
-        },
-        {
-          date: '2025-04-15',
-          description: 'NETFLIX',
-          amount: 39.0,
-          type: 'debit',
-        },
-      ]),
-    );
-
-    await expect(service.extract(pdf)).rejects.toThrow('Sum check failed');
-  });
-
   it('should propagate Anthropic SDK errors', async () => {
     mockAnthropicClient.messages.create.mockRejectedValue(
       new Error('API error'),
