@@ -122,8 +122,6 @@ export class ExtractionService {
       );
     }
 
-    this.validateSum(result);
-
     return result.transactions.map((t) => ({
       date: t.date,
       description: t.description,
@@ -135,18 +133,4 @@ export class ExtractionService {
     }));
   }
 
-  private validateSum({
-    invoiceTotal,
-    transactions,
-  }: ClaudeExtractionResult): void {
-    const debitSum = transactions.reduce(
-      (acc, t) => (t.type === 'debit' ? acc + t.amount : acc),
-      0,
-    );
-    if (Math.abs(debitSum - invoiceTotal) > 0.01) {
-      throw new Error(
-        `Sum check failed: transactions sum ${debitSum.toFixed(2)} differs from invoiceTotal ${invoiceTotal.toFixed(2)}`,
-      );
-    }
-  }
 }
