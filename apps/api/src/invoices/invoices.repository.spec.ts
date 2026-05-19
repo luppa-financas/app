@@ -7,6 +7,7 @@ const mockPrisma = {
     create: jest.fn(),
     findFirst: jest.fn(),
     findMany: jest.fn(),
+    delete: jest.fn(),
   },
 };
 
@@ -125,6 +126,18 @@ describe('InvoicesRepository', () => {
       );
 
       expect(result).toBeNull();
+    });
+  });
+
+  describe('deleteById', () => {
+    it('should call prisma.invoice.delete with id and userId', async () => {
+      mockPrisma.invoice.delete.mockResolvedValue({});
+
+      await repository.deleteById('inv-1', 'user-1');
+
+      expect(mockPrisma.invoice.delete).toHaveBeenCalledWith({
+        where: { id: 'inv-1', userId: 'user-1' },
+      });
     });
   });
 });

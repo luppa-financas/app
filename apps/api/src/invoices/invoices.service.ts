@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Invoice } from '@prisma/client';
@@ -12,6 +12,7 @@ import { InvoiceCreatedEvent } from './events/invoice-created.event';
 
 @Injectable()
 export class InvoicesService {
+  private readonly logger = new Logger(InvoicesService.name);
   private readonly envPrefix: string;
 
   constructor(
@@ -60,5 +61,22 @@ export class InvoicesService {
     );
     if (!invoice) throw new NotFoundException(`Invoice ${id} not found`);
     return invoice;
+  }
+
+  async delete(id: string, userId: string): Promise<void> {
+    const invoice = await this.invoicesRepository.findById(id, userId);
+    if (!invoice) throw new NotFoundException(`Invoice ${id} not found`);
+
+    const { storagePath } = invoice;
+    await this.invoicesRepository.deleteById(id, userId);
+
+    try {
+      await this.storageService.delete(INVOICES_BUCKET, storagePath);
+    } catch (err) {
+      this.logger.error(
+        `Failed to delete storage file for invoice ${id}`,
+        err instanceof Error ? err.stack : String(err),
+      );
+    }
   }
 }

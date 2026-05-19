@@ -42,4 +42,8 @@ export class InvoicesRepository {
   async updateStatus(id: string, status: InvoiceStatus): Promise<void> {
     await this.prisma.invoice.update({ where: { id }, data: { status } });
   }
+
+  async deleteById(id: string, userId: string): Promise<void> {
+    await this.prisma.invoice.delete({ where: { id, userId } });
+  }
 }
