@@ -39,7 +39,12 @@ export const CATEGORIES: Record<string, readonly string[]> = {
   Educação: ['Faculdade / Curso', 'Livros', 'Assinatura de conteúdo'],
   Viagem: ['Passagem', 'Hospedagem', 'Aluguel de carro', 'Passeios / Atrações'],
   Finanças: ['Fatura / Boleto', 'Investimento', 'Seguro', 'Tarifa bancária'],
-  Pets: ['Veterinário', 'Ração / Petisco', 'Pet shop / Banho e tosa', 'Medicamento / Vacina'],
+  Pets: [
+    'Veterinário',
+    'Ração / Petisco',
+    'Pet shop / Banho e tosa',
+    'Medicamento / Vacina',
+  ],
   Outros: [],
 };
 
