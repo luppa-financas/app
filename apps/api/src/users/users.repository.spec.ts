@@ -6,6 +6,7 @@ const mockPrisma = {
   user: {
     create: jest.fn(),
     delete: jest.fn(),
+    findUnique: jest.fn(),
   },
 };
 
@@ -44,6 +45,28 @@ describe('UsersRepository', () => {
 
     expect(mockPrisma.user.delete).toHaveBeenCalledWith({
       where: { id: 'user_1' },
+    });
+  });
+
+  describe('findById', () => {
+    it('should return user when found', async () => {
+      const user = { id: 'user_1', roles: ['mvp'], createdAt: new Date() };
+      mockPrisma.user.findUnique.mockResolvedValue(user);
+
+      const result = await repository.findById('user_1');
+
+      expect(mockPrisma.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 'user_1' },
+      });
+      expect(result).toBe(user);
+    });
+
+    it('should return null when user is not found', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+
+      const result = await repository.findById('user_1');
+
+      expect(result).toBeNull();
     });
   });
 });

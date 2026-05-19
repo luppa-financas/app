@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, RawBodyRequest } from '@nestjs/common';
+import { BadRequestException, NotFoundException, RawBodyRequest } from '@nestjs/common';
 import { Request } from 'express';
-import { UsersController } from './users.controller';
+import { UsersController, UserProfileController } from './users.controller';
 import { UsersService } from './users.service';
 import { WebhookVerifier } from './webhook-verifier';
 
@@ -89,5 +89,43 @@ describe('UsersController', () => {
 
     expect(mockUsersService.handleUserCreated).not.toHaveBeenCalled();
     expect(mockUsersService.handleUserDeleted).not.toHaveBeenCalled();
+  });
+});
+
+describe('UserProfileController', () => {
+  let controller: UserProfileController;
+
+  const mockUsersService = {
+    getMe: jest.fn(),
+  };
+
+  beforeEach(async () => {
+    jest.resetAllMocks();
+
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [UserProfileController],
+      providers: [{ provide: UsersService, useValue: mockUsersService }],
+    }).compile();
+
+    controller = module.get<UserProfileController>(UserProfileController);
+  });
+
+  describe('GET /users/me', () => {
+    it('should return id and roles for the authenticated user', async () => {
+      const user = { id: 'user_1', roles: ['mvp'], createdAt: new Date() };
+      mockUsersService.getMe.mockResolvedValue(user);
+
+      const result = await controller.getMe('user_1');
+
+      expect(mockUsersService.getMe).toHaveBeenCalledWith('user_1');
+      expect(result).toEqual({ id: 'user_1', roles: ['mvp'] });
+      expect(result).not.toHaveProperty('createdAt');
+    });
+
+    it('should propagate NotFoundException when user is not found', async () => {
+      mockUsersService.getMe.mockRejectedValue(new NotFoundException());
+
+      await expect(controller.getMe('user_1')).rejects.toThrow(NotFoundException);
+    });
   });
 });
