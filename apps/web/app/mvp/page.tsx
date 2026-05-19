@@ -38,6 +38,9 @@ export default function DashboardPage() {
   const [detail, setDetail] = useState<InvoiceDetail | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState('');
   const [filterSubcategory, setFilterSubcategory] = useState('');
   const [filterType, setFilterType] = useState<'ALL' | 'DEBIT' | 'CREDIT'>('ALL');
@@ -86,6 +89,27 @@ export default function DashboardPage() {
       }
     }, 3000);
   }, [fetchDetail, fetchInvoices]);
+
+  async function handleDelete() {
+    if (!deleteTargetId) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const h = await headers();
+      const res = await fetch(`${API}/invoices/${deleteTargetId}`, { method: 'DELETE', headers: h });
+      if (!res.ok) throw new Error('Erro ao excluir fatura');
+      setInvoices((prev) => prev.filter((inv) => inv.id !== deleteTargetId));
+      if (selectedId === deleteTargetId) {
+        setSelectedId(null);
+        setDetail(null);
+      }
+      setDeleteTargetId(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Erro desconhecido');
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -170,19 +194,32 @@ export default function DashboardPage() {
           <h2 className="font-semibold mb-4">Faturas</h2>
           <div className="flex flex-wrap gap-2">
             {invoices.map((inv) => (
-              <button
+              <div
                 key={inv.id}
-                onClick={() => setSelectedId(inv.id)}
-                className={`px-3 py-1.5 rounded-lg text-sm border transition ${
+                className={`flex items-center rounded-lg text-sm border transition ${
                   selectedId === inv.id
                     ? 'bg-indigo-600 text-white border-indigo-600'
                     : 'bg-white text-gray-700 border-gray-300 hover:border-indigo-400'
                 }`}
               >
-                {new Date(inv.createdAt).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
-                {inv.status === 'PENDING' && <span className="ml-1 text-xs opacity-70">(processando…)</span>}
-                {inv.status === 'FAILED' && <span className="ml-1 text-xs text-red-400">(falhou)</span>}
-              </button>
+                <button
+                  onClick={() => setSelectedId(inv.id)}
+                  className="px-3 py-1.5"
+                >
+                  {new Date(inv.createdAt).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
+                  {inv.status === 'PENDING' && <span className="ml-1 text-xs opacity-70">(processando…)</span>}
+                  {inv.status === 'FAILED' && <span className="ml-1 text-xs text-red-400">(falhou)</span>}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setDeleteTargetId(inv.id); setDeleteError(null); }}
+                  aria-label="Excluir fatura"
+                  className={`pr-2 pl-1 py-1.5 opacity-50 hover:opacity-100 transition ${
+                    selectedId === inv.id ? 'text-white' : 'text-gray-500'
+                  }`}
+                >
+                  ×
+                </button>
+              </div>
             ))}
           </div>
         </section>
@@ -323,6 +360,34 @@ export default function DashboardPage() {
       )}
       {detail?.status === 'FAILED' && (
         <p className="text-sm text-red-500 mt-4">Falha ao processar esta fatura.</p>
+      )}
+
+      {deleteTargetId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl border p-6 max-w-sm w-full mx-4 shadow-lg">
+            <h3 className="font-semibold text-gray-900 mb-2">Excluir fatura?</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Essa ação não pode ser desfeita. A fatura e todas as suas transações serão removidas.
+            </p>
+            {deleteError && <p className="text-sm text-red-500 mb-4">{deleteError}</p>}
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteTargetId(null)}
+                disabled={deleting}
+                className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 transition disabled:opacity-50"
+              >
+                {deleting ? 'Excluindo…' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );
