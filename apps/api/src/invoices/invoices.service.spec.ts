@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -10,11 +11,13 @@ import { InvoicesRepository } from './invoices.repository';
 import { StorageService } from '../storage/storage.service';
 import { InvoiceCreatedEvent } from './events/invoice-created.event';
 
-const mockStorageService = { upload: jest.fn() };
+const mockStorageService = { upload: jest.fn(), delete: jest.fn() };
 const mockInvoicesRepository = {
   create: jest.fn(),
+  findById: jest.fn(),
   findAllByUserId: jest.fn(),
   findByIdWithTransactions: jest.fn(),
+  deleteById: jest.fn(),
 };
 const mockEventEmitter = { emit: jest.fn() };
 
@@ -172,6 +175,69 @@ describe('InvoicesService', () => {
       await expect(service.findById('inv-1', 'user-1')).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('delete', () => {
+    let service: InvoicesService;
+
+    beforeEach(async () => {
+      service = await createService('development');
+    });
+
+    it('should throw NotFoundException when invoice is not found', async () => {
+      mockInvoicesRepository.findById.mockResolvedValue(null);
+
+      await expect(service.delete('inv-1', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should call deleteById and storageService.delete on success', async () => {
+      mockInvoicesRepository.findById.mockResolvedValue({
+        id: 'inv-1',
+        storagePath: 'dev/user-1/fatura.pdf',
+      });
+      mockInvoicesRepository.deleteById.mockResolvedValue(undefined);
+      mockStorageService.delete.mockResolvedValue(undefined);
+
+      await service.delete('inv-1', 'user-1');
+
+      expect(mockInvoicesRepository.deleteById).toHaveBeenCalledWith(
+        'inv-1',
+        'user-1',
+      );
+      expect(mockStorageService.delete).toHaveBeenCalledWith(
+        'invoices',
+        'dev/user-1/fatura.pdf',
+      );
+    });
+
+    it('should not throw when storageService.delete fails', async () => {
+      mockInvoicesRepository.findById.mockResolvedValue({
+        id: 'inv-1',
+        storagePath: 'dev/user-1/fatura.pdf',
+      });
+      mockInvoicesRepository.deleteById.mockResolvedValue(undefined);
+      mockStorageService.delete.mockRejectedValue(new Error('storage error'));
+
+      await expect(service.delete('inv-1', 'user-1')).resolves.toBeUndefined();
+    });
+
+    it('should log error when storageService.delete fails', async () => {
+      mockInvoicesRepository.findById.mockResolvedValue({
+        id: 'inv-1',
+        storagePath: 'dev/user-1/fatura.pdf',
+      });
+      mockInvoicesRepository.deleteById.mockResolvedValue(undefined);
+      mockStorageService.delete.mockRejectedValue(new Error('storage error'));
+      const loggerSpy = jest
+        .spyOn(Logger.prototype, 'error')
+        .mockImplementation();
+
+      await service.delete('inv-1', 'user-1');
+
+      expect(loggerSpy).toHaveBeenCalled();
     });
   });
 });

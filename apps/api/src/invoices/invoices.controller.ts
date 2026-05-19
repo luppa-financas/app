@@ -1,7 +1,10 @@
 import {
   Controller,
+  Delete,
   FileTypeValidator,
   Get,
+  HttpCode,
+  HttpStatus,
   MaxFileSizeValidator,
   Param,
   ParseFilePipe,
@@ -51,5 +54,14 @@ export class InvoicesController {
   ): Promise<InvoiceDetailResponseDto> {
     const invoice = await this.invoicesService.findById(id, userId);
     return InvoiceDetailResponseDto.from(invoice);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async delete(
+    @Param('id') id: string,
+    @CurrentUser() userId: string,
+  ): Promise<void> {
+    await this.invoicesService.delete(id, userId);
   }
 }

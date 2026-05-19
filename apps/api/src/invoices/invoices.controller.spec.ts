@@ -7,6 +7,7 @@ const mockInvoicesService = {
   create: jest.fn(),
   findAll: jest.fn(),
   findById: jest.fn(),
+  delete: jest.fn(),
 };
 
 describe('InvoicesController', () => {
@@ -114,6 +115,28 @@ describe('InvoicesController', () => {
       mockInvoicesService.findById.mockRejectedValue(new NotFoundException());
 
       await expect(controller.findOne('inv-1', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('DELETE /invoices/:id', () => {
+    it('should return undefined (204) when deletion succeeds', async () => {
+      mockInvoicesService.delete.mockResolvedValue(undefined);
+
+      const result = await controller.delete('inv-1', 'user-1');
+
+      expect(mockInvoicesService.delete).toHaveBeenCalledWith(
+        'inv-1',
+        'user-1',
+      );
+      expect(result).toBeUndefined();
+    });
+
+    it('should propagate NotFoundException when invoice is not found', async () => {
+      mockInvoicesService.delete.mockRejectedValue(new NotFoundException());
+
+      await expect(controller.delete('inv-1', 'user-1')).rejects.toThrow(
         NotFoundException,
       );
     });
