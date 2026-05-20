@@ -19,6 +19,6 @@ describe('InvoiceResponseDto.from', () => {
 
   it('excludes createdAt', () => {
     const dto = InvoiceResponseDto.from(base);
-    expect((dto as Record<string, unknown>).createdAt).toBeUndefined();
+    expect((dto as unknown as Record<string, unknown>).createdAt).toBeUndefined();
   });
 });

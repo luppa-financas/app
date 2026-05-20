@@ -39,10 +39,12 @@ describe('InvoicesRepository', () => {
       };
       mockPrisma.invoice.create.mockResolvedValue(invoice);
 
+      const billingMonth = new Date('2025-09-01');
       const result = await repository.create({
         userId: 'user-1',
         filename: 'fatura.pdf',
         storagePath: 'invoices/user-1/fatura.pdf',
+        billingMonth,
       });
 
       expect(result).toEqual(invoice);
@@ -51,6 +53,7 @@ describe('InvoicesRepository', () => {
           userId: 'user-1',
           filename: 'fatura.pdf',
           storagePath: 'invoices/user-1/fatura.pdf',
+          billingMonth,
         },
       });
     });
