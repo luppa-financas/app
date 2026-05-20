@@ -31,3 +31,4 @@ coverage/
 
 # Sensitive data — real invoice PDFs must never be committed
 apps/api/src/extraction/testdata/*.pdf
+tmp/
