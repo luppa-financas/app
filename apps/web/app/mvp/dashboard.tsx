@@ -447,22 +447,20 @@ export default function Dashboard() {
                         {new Date(t.date).toLocaleDateString('pt-BR')}
                       </td>
                       <td className="py-2 pr-4">
-                        <span className="flex items-center gap-1">
-                          {t.alias ?? t.description}
-                          <button
-                            onClick={() => openEdit(t)}
-                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-indigo-600 transition-opacity"
-                            aria-label="Editar transação"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                            </svg>
-                          </button>
-                        </span>
+                        <span>{t.alias ?? t.description}</span>
                         {t.alias && <span className="block text-xs text-gray-400">{t.description}</span>}
                       </td>
                       <td className="py-2 pr-4">
-                        <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{t.category}</span>
+                        <button
+                          onClick={() => openEdit(t)}
+                          aria-label="Editar categoria"
+                          className="group/cat inline-flex items-center gap-1 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full hover:bg-indigo-200 active:bg-indigo-300 transition"
+                        >
+                          {t.category}
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 opacity-40 group-hover/cat:opacity-100 transition-opacity flex-shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                          </svg>
+                        </button>
                         {t.subcategory && (
                           <span className="ml-1 text-xs text-gray-500">{t.subcategory}</span>
                         )}
