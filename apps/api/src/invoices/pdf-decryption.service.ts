@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { spawn } from 'child_process';
 
 export class WrongPasswordError extends Error {
@@ -10,6 +10,8 @@ export class WrongPasswordError extends Error {
 
 @Injectable()
 export class PdfDecryptionService {
+  private readonly logger = new Logger(PdfDecryptionService.name);
+
   decrypt(buffer: Buffer, password: string): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const proc = spawn('qpdf', [
@@ -36,11 +38,14 @@ export class PdfDecryptionService {
           resolve(Buffer.concat(stdoutChunks));
           return;
         }
+        const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
+        this.logger.error(
+          `qpdf exited with code ${code} (input ${buffer.length} bytes, password length ${password.length}): ${stderr}`,
+        );
         if (code === 2) {
           reject(new WrongPasswordError());
           return;
         }
-        const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
         reject(new Error(`qpdf exited with code ${code}: ${stderr}`));
       });
 
