@@ -22,8 +22,14 @@ describe('TransactionsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TransactionsService,
-        { provide: TransactionsRepository, useValue: mockTransactionsRepository },
-        { provide: MerchantRulesRepository, useValue: mockMerchantRulesRepository },
+        {
+          provide: TransactionsRepository,
+          useValue: mockTransactionsRepository,
+        },
+        {
+          provide: MerchantRulesRepository,
+          useValue: mockMerchantRulesRepository,
+        },
       ],
     }).compile();
 
@@ -49,8 +55,14 @@ describe('TransactionsService', () => {
     };
 
     beforeEach(() => {
-      mockTransactionsRepository.findByIdAndUserId.mockResolvedValue(existingTransaction);
-      mockTransactionsRepository.update.mockResolvedValue({ ...existingTransaction, ...dto, needsReview: false });
+      mockTransactionsRepository.findByIdAndUserId.mockResolvedValue(
+        existingTransaction,
+      );
+      mockTransactionsRepository.update.mockResolvedValue({
+        ...existingTransaction,
+        ...dto,
+        needsReview: false,
+      });
     });
 
     it('updates alias, category and subcategory on the transaction', async () => {
@@ -78,7 +90,9 @@ describe('TransactionsService', () => {
     it('throws NotFoundException when transaction does not belong to userId', async () => {
       mockTransactionsRepository.findByIdAndUserId.mockResolvedValue(null);
 
-      await expect(service.update(transactionId, userId, dto)).rejects.toThrow(NotFoundException);
+      await expect(service.update(transactionId, userId, dto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('upserts MerchantRule with userId, description as pattern, category, subcategory, confidence 1.0 and USER_CORRECTION source', async () => {
@@ -95,8 +109,15 @@ describe('TransactionsService', () => {
     });
 
     it('updates existing MerchantRule when same (userId, pattern) already exists', async () => {
-      const secondDto: UpdateTransactionDto = { category: 'Transporte', subcategory: null };
-      mockTransactionsRepository.update.mockResolvedValue({ ...existingTransaction, ...secondDto, needsReview: false });
+      const secondDto: UpdateTransactionDto = {
+        category: 'Transporte',
+        subcategory: null,
+      };
+      mockTransactionsRepository.update.mockResolvedValue({
+        ...existingTransaction,
+        ...secondDto,
+        needsReview: false,
+      });
 
       await service.update(transactionId, userId, secondDto);
 
