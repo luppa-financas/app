@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Delete,
   FileTypeValidator,
@@ -37,8 +38,9 @@ export class InvoicesController {
       }),
     )
     file: Express.Multer.File,
+    @Body('password') password?: string,
   ): Promise<{ invoiceId: string }> {
-    return this.invoicesService.create(userId, file);
+    return this.invoicesService.create(userId, file, password);
   }
 
   @Get()

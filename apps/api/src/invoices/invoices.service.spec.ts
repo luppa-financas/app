@@ -11,6 +11,10 @@ import { InvoicesService } from './invoices.service';
 import { InvoicesRepository } from './invoices.repository';
 import { StorageService } from '../storage/storage.service';
 import { InvoiceCreatedEvent } from './events/invoice-created.event';
+import {
+  PdfDecryptionService,
+  WrongPasswordError,
+} from './pdf-decryption.service';
 
 const mockStorageService = { upload: jest.fn(), delete: jest.fn() };
 const mockInvoicesRepository = {
@@ -21,6 +25,7 @@ const mockInvoicesRepository = {
   deleteById: jest.fn(),
 };
 const mockEventEmitter = { emit: jest.fn() };
+const mockPdfDecryptionService = { decrypt: jest.fn() };
 
 const file = {
   originalname: 'fatura.pdf',
@@ -35,6 +40,7 @@ async function createService(nodeEnv: string): Promise<InvoicesService> {
       { provide: StorageService, useValue: mockStorageService },
       { provide: InvoicesRepository, useValue: mockInvoicesRepository },
       { provide: EventEmitter2, useValue: mockEventEmitter },
+      { provide: PdfDecryptionService, useValue: mockPdfDecryptionService },
       {
         provide: ConfigService,
         useValue: { get: jest.fn().mockReturnValue(nodeEnv) },
@@ -105,23 +111,70 @@ describe('InvoicesService', () => {
 
   describe('create — encrypted PDF', () => {
     let service: InvoicesService;
+    const encryptedBuffer = Buffer.from(
+      '%PDF-1.4\n1 0 obj\n<< /Encrypt 2 0 R >>\nendobj',
+    );
+    const encryptedFile = {
+      ...file,
+      buffer: encryptedBuffer,
+    } as Express.Multer.File;
 
     beforeEach(async () => {
       service = await createService('development');
     });
 
-    it('should throw UnprocessableEntityException without uploading', async () => {
-      const encryptedBuffer = Buffer.from(
-        '%PDF-1.4\n1 0 obj\n<< /Encrypt 2 0 R >>\nendobj',
-      );
-      const encryptedFile = {
-        ...file,
-        buffer: encryptedBuffer,
-      } as Express.Multer.File;
-
+    it('should throw UnprocessableEntityException when no password is provided', async () => {
       await expect(service.create('user-1', encryptedFile)).rejects.toThrow(
         UnprocessableEntityException,
       );
+      expect(mockStorageService.upload).not.toHaveBeenCalled();
+      expect(mockPdfDecryptionService.decrypt).not.toHaveBeenCalled();
+    });
+
+    it('should decrypt and upload the decrypted buffer when password is correct', async () => {
+      const decrypted = Buffer.from('decrypted-pdf');
+      mockPdfDecryptionService.decrypt.mockResolvedValue(decrypted);
+      mockStorageService.upload.mockResolvedValue('dev/user-1/fatura.pdf');
+      mockInvoicesRepository.create.mockResolvedValue({
+        id: 'inv-1',
+        userId: 'user-1',
+        storagePath: 'dev/user-1/fatura.pdf',
+      });
+
+      const result = await service.create('user-1', encryptedFile, 's3cret');
+
+      expect(mockPdfDecryptionService.decrypt).toHaveBeenCalledWith(
+        encryptedBuffer,
+        's3cret',
+      );
+      expect(mockStorageService.upload).toHaveBeenCalledWith(
+        'invoices',
+        expect.stringMatching(/^dev\/user-1\//),
+        decrypted,
+        'application/pdf',
+      );
+      expect(result).toEqual({ invoiceId: 'inv-1' });
+    });
+
+    it('should throw UnprocessableEntityException with "Senha incorreta" when password is wrong', async () => {
+      mockPdfDecryptionService.decrypt.mockRejectedValue(
+        new WrongPasswordError(),
+      );
+
+      await expect(
+        service.create('user-1', encryptedFile, 'wrong'),
+      ).rejects.toThrow(new UnprocessableEntityException('Senha incorreta'));
+      expect(mockStorageService.upload).not.toHaveBeenCalled();
+    });
+
+    it('should propagate non-WrongPassword errors from decryption', async () => {
+      mockPdfDecryptionService.decrypt.mockRejectedValue(
+        new Error('qpdf exited with code 3: corrupt'),
+      );
+
+      await expect(
+        service.create('user-1', encryptedFile, 's3cret'),
+      ).rejects.toThrow(/qpdf/);
       expect(mockStorageService.upload).not.toHaveBeenCalled();
     });
   });

@@ -14,6 +14,10 @@ import {
   InvoiceWithTransactions,
 } from './invoices.repository';
 import { InvoiceCreatedEvent } from './events/invoice-created.event';
+import {
+  PdfDecryptionService,
+  WrongPasswordError,
+} from './pdf-decryption.service';
 
 @Injectable()
 export class InvoicesService {
@@ -24,6 +28,7 @@ export class InvoicesService {
     private readonly storageService: StorageService,
     private readonly invoicesRepository: InvoicesRepository,
     private readonly eventEmitter: EventEmitter2,
+    private readonly pdfDecryptionService: PdfDecryptionService,
     config: ConfigService,
   ) {
     this.envPrefix =
@@ -37,17 +42,30 @@ export class InvoicesService {
   async create(
     userId: string,
     file: Express.Multer.File,
+    password?: string,
   ): Promise<{ invoiceId: string }> {
-    if (this.isEncryptedPdf(file.buffer)) {
-      throw new UnprocessableEntityException(
-        'PDF protegido por senha. Remova a senha antes de enviar.',
-      );
+    let buffer = file.buffer;
+
+    if (this.isEncryptedPdf(buffer)) {
+      if (!password) {
+        throw new UnprocessableEntityException(
+          'PDF protegido por senha. Remova a senha antes de enviar.',
+        );
+      }
+      try {
+        buffer = await this.pdfDecryptionService.decrypt(buffer, password);
+      } catch (err) {
+        if (err instanceof WrongPasswordError) {
+          throw new UnprocessableEntityException('Senha incorreta');
+        }
+        throw err;
+      }
     }
 
     const storagePath = await this.storageService.upload(
       INVOICES_BUCKET,
       `${this.envPrefix}/${userId}/${Date.now()}-${file.originalname}`,
-      file.buffer,
+      buffer,
       file.mimetype,
     );
 
