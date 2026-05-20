@@ -35,12 +35,17 @@ describe('MerchantRulesRepository', () => {
     };
 
     it('creates a new rule when none exists for (userId, pattern)', async () => {
-      mockPrisma.merchantRule.upsert.mockResolvedValue({ id: 'rule-1', ...input });
+      mockPrisma.merchantRule.upsert.mockResolvedValue({
+        id: 'rule-1',
+        ...input,
+      });
 
       await repository.upsert(input);
 
       expect(mockPrisma.merchantRule.upsert).toHaveBeenCalledWith({
-        where: { userId_pattern: { userId: input.userId, pattern: input.pattern } },
+        where: {
+          userId_pattern: { userId: input.userId, pattern: input.pattern },
+        },
         create: expect.objectContaining({
           userId: input.userId,
           pattern: input.pattern,
@@ -48,19 +53,22 @@ describe('MerchantRulesRepository', () => {
           subcategory: input.subcategory,
           confidence: input.confidence,
           source: input.source,
-        }),
+        }) as unknown,
         update: expect.objectContaining({
           category: input.category,
           subcategory: input.subcategory,
           confidence: input.confidence,
           source: input.source,
-        }),
+        }) as unknown,
       });
     });
 
     it('updates category, subcategory, confidence and source when rule already exists', async () => {
       const updated = { ...input, category: 'Transporte', subcategory: null };
-      mockPrisma.merchantRule.upsert.mockResolvedValue({ id: 'rule-1', ...updated });
+      mockPrisma.merchantRule.upsert.mockResolvedValue({
+        id: 'rule-1',
+        ...updated,
+      });
 
       await repository.upsert(updated);
 
@@ -69,7 +77,7 @@ describe('MerchantRulesRepository', () => {
           update: expect.objectContaining({
             category: 'Transporte',
             subcategory: null,
-          }),
+          }) as unknown,
         }),
       );
     });
