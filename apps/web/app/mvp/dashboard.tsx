@@ -3,6 +3,7 @@
 import { useAuth } from '@clerk/nextjs';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { detectEncryptedPdf } from '../../lib/pdf-crypto';
+import { MonthPicker } from '../../components/MonthPicker';
 import { Cell, Pie, PieChart, Tooltip } from 'recharts';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -316,12 +317,10 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="flex items-center gap-3 flex-wrap">
-            <input
-              type="month"
+            <MonthPicker
               value={billingMonth}
-              onChange={(e) => setBillingMonth(e.target.value)}
+              onChange={setBillingMonth}
               disabled={uploading}
-              className="border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
             <label className="flex items-center gap-3 cursor-pointer w-fit">
               <span className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition">
@@ -443,27 +442,18 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {filteredTransactions.map((t) => (
-                    <tr key={t.id} className="group border-b last:border-0 hover:bg-gray-50">
+                    <tr key={t.id} onClick={() => openEdit(t)} className="border-b last:border-0 hover:bg-gray-50 active:bg-indigo-50 cursor-pointer">
                       <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">
                         {new Date(t.date).toLocaleDateString('pt-BR')}
                       </td>
                       <td className="py-2 pr-4">
-                        <span className="flex items-center gap-1">
-                          {t.alias ?? t.description}
-                          <button
-                            onClick={() => openEdit(t)}
-                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-indigo-600 transition-opacity"
-                            aria-label="Editar transação"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                            </svg>
-                          </button>
-                        </span>
+                        <span>{t.alias ?? t.description}</span>
                         {t.alias && <span className="block text-xs text-gray-400">{t.description}</span>}
                       </td>
                       <td className="py-2 pr-4">
-                        <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{t.category}</span>
+                        <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                          {t.category}
+                        </span>
                         {t.subcategory && (
                           <span className="ml-1 text-xs text-gray-500">{t.subcategory}</span>
                         )}
