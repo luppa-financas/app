@@ -2,31 +2,29 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { spawn } from 'child_process';
 import { EventEmitter } from 'events';
 import { PassThrough } from 'stream';
+import { readFile, unlink, writeFile } from 'fs/promises';
 import {
   PdfDecryptionService,
   WrongPasswordError,
 } from './pdf-decryption.service';
 
 jest.mock('child_process');
+jest.mock('fs/promises');
 
 type MockProcess = EventEmitter & {
-  stdin: PassThrough;
   stdout: PassThrough;
   stderr: PassThrough;
 };
 
 function createMockProcess(opts: {
-  stdoutData?: Buffer;
   stderrData?: string;
   exitCode: number;
 }): MockProcess {
   const proc = new EventEmitter() as MockProcess;
-  proc.stdin = new PassThrough();
   proc.stdout = new PassThrough();
   proc.stderr = new PassThrough();
 
   setImmediate(() => {
-    if (opts.stdoutData) proc.stdout.write(opts.stdoutData);
     if (opts.stderrData) proc.stderr.write(opts.stderrData);
     proc.stdout.end();
     proc.stderr.end();
@@ -39,60 +37,90 @@ function createMockProcess(opts: {
 describe('PdfDecryptionService', () => {
   let service: PdfDecryptionService;
   const spawnMock = spawn as jest.MockedFunction<typeof spawn>;
+  const writeFileMock = writeFile as jest.MockedFunction<typeof writeFile>;
+  const readFileMock = readFile as jest.MockedFunction<typeof readFile>;
+  const unlinkMock = unlink as jest.MockedFunction<typeof unlink>;
 
   beforeEach(async () => {
     jest.resetAllMocks();
+    writeFileMock.mockResolvedValue(undefined);
+    unlinkMock.mockResolvedValue(undefined);
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [PdfDecryptionService],
     }).compile();
     service = module.get<PdfDecryptionService>(PdfDecryptionService);
   });
 
-  it('should spawn qpdf with --password, --decrypt and stdin/stdout pipes', async () => {
-    const decrypted = Buffer.from('decrypted-pdf-bytes');
+  it('should write input buffer to a temp file before spawning qpdf', async () => {
+    readFileMock.mockResolvedValue(Buffer.from('decrypted-pdf-bytes'));
     spawnMock.mockReturnValue(
-      createMockProcess({ stdoutData: decrypted, exitCode: 0 }) as never,
+      createMockProcess({ exitCode: 0 }) as never,
+    );
+
+    await service.decrypt(Buffer.from('encrypted-bytes'), 's3cret');
+
+    expect(writeFileMock).toHaveBeenCalledTimes(1);
+    const [inputPath, writtenBuffer] = writeFileMock.mock.calls[0];
+    expect(inputPath).toMatch(/qpdf-in-.*\.pdf$/);
+    expect(writtenBuffer).toEqual(Buffer.from('encrypted-bytes'));
+  });
+
+  it('should spawn qpdf with --password, --decrypt and the temp file paths', async () => {
+    readFileMock.mockResolvedValue(Buffer.from('decrypted-pdf-bytes'));
+    spawnMock.mockReturnValue(
+      createMockProcess({ exitCode: 0 }) as never,
     );
 
     await service.decrypt(Buffer.from('encrypted'), 's3cret');
 
-    expect(spawnMock).toHaveBeenCalledWith('qpdf', [
+    expect(spawnMock).toHaveBeenCalledTimes(1);
+    const [cmd, args] = spawnMock.mock.calls[0];
+    expect(cmd).toBe('qpdf');
+    expect(args).toEqual([
       '--password=s3cret',
       '--decrypt',
-      '-',
-      '-',
+      expect.stringMatching(/qpdf-in-.*\.pdf$/),
+      expect.stringMatching(/qpdf-out-.*\.pdf$/),
     ]);
   });
 
-  it('should resolve with the decrypted buffer when qpdf exits 0', async () => {
+  it('should resolve with the buffer read from the output temp file', async () => {
     const decrypted = Buffer.from('decrypted-pdf-bytes');
+    readFileMock.mockResolvedValue(decrypted);
     spawnMock.mockReturnValue(
-      createMockProcess({ stdoutData: decrypted, exitCode: 0 }) as never,
+      createMockProcess({ exitCode: 0 }) as never,
     );
 
     const result = await service.decrypt(Buffer.from('encrypted'), 's3cret');
 
-    expect(result.equals(decrypted)).toBe(true);
+    expect(result).toBe(decrypted);
+    expect(readFileMock).toHaveBeenCalledWith(
+      expect.stringMatching(/qpdf-out-.*\.pdf$/),
+    );
   });
 
-  it('should write input buffer to qpdf stdin', async () => {
-    const decrypted = Buffer.from('decrypted-pdf-bytes');
-    const proc = createMockProcess({ stdoutData: decrypted, exitCode: 0 });
-    const chunks: Buffer[] = [];
-    proc.stdin.on('data', (chunk: Buffer) => chunks.push(chunk));
-    spawnMock.mockReturnValue(proc as never);
+  it('should unlink both temp files on success', async () => {
+    readFileMock.mockResolvedValue(Buffer.from('decrypted'));
+    spawnMock.mockReturnValue(
+      createMockProcess({ exitCode: 0 }) as never,
+    );
 
-    const input = Buffer.from('encrypted-pdf-bytes');
-    await service.decrypt(input, 's3cret');
+    await service.decrypt(Buffer.from('encrypted'), 's3cret');
 
-    const written = Buffer.concat(chunks);
-    expect(written.equals(input)).toBe(true);
+    const unlinkedPaths = unlinkMock.mock.calls.map((c) => c[0]);
+    expect(unlinkedPaths).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/qpdf-in-.*\.pdf$/),
+        expect.stringMatching(/qpdf-out-.*\.pdf$/),
+      ]),
+    );
   });
 
-  it('should throw WrongPasswordError when qpdf exits with code 2', async () => {
+  it('should throw WrongPasswordError when stderr matches "incorrect password"', async () => {
     spawnMock.mockReturnValue(
       createMockProcess({
-        stderrData: 'invalid password',
+        stderrData: 'Incorrect password supplied',
         exitCode: 2,
       }) as never,
     );
@@ -102,31 +130,48 @@ describe('PdfDecryptionService', () => {
     ).rejects.toBeInstanceOf(WrongPasswordError);
   });
 
-  it('should throw generic Error when qpdf exits with any other non-zero code', async () => {
+  it('should throw generic Error when qpdf fails with an unrelated stderr', async () => {
     spawnMock.mockReturnValue(
       createMockProcess({
-        stderrData: 'corrupt file',
-        exitCode: 3,
+        stderrData: 'open -: No such file or directory',
+        exitCode: 2,
       }) as never,
     );
 
     await expect(
       service.decrypt(Buffer.from('encrypted'), 's3cret'),
-    ).rejects.toThrow(/qpdf/i);
+    ).rejects.toThrow(/qpdf/);
   });
 
-  it('should not crash when stdin emits EPIPE because qpdf closed early', async () => {
-    const proc = createMockProcess({
-      stderrData: 'invalid password',
-      exitCode: 2,
-    });
-    spawnMock.mockReturnValue(proc as never);
+  it('should unlink both temp files even when qpdf fails', async () => {
+    spawnMock.mockReturnValue(
+      createMockProcess({
+        stderrData: 'Incorrect password supplied',
+        exitCode: 2,
+      }) as never,
+    );
 
-    // Simulate qpdf closing stdin before we finish writing the buffer.
-    setImmediate(() => {
-      const epipe = Object.assign(new Error('write EPIPE'), { code: 'EPIPE' });
-      proc.stdin.emit('error', epipe);
-    });
+    await expect(
+      service.decrypt(Buffer.from('encrypted'), 'wrong'),
+    ).rejects.toBeInstanceOf(WrongPasswordError);
+
+    const unlinkedPaths = unlinkMock.mock.calls.map((c) => c[0]);
+    expect(unlinkedPaths).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/qpdf-in-.*\.pdf$/),
+        expect.stringMatching(/qpdf-out-.*\.pdf$/),
+      ]),
+    );
+  });
+
+  it('should swallow unlink errors so they do not mask the original failure', async () => {
+    unlinkMock.mockRejectedValue(new Error('ENOENT'));
+    spawnMock.mockReturnValue(
+      createMockProcess({
+        stderrData: 'Incorrect password supplied',
+        exitCode: 2,
+      }) as never,
+    );
 
     await expect(
       service.decrypt(Buffer.from('encrypted'), 'wrong'),

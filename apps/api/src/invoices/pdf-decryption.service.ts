@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { spawn } from 'child_process';
+import { randomUUID } from 'crypto';
+import { readFile, unlink, writeFile } from 'fs/promises';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 export class WrongPasswordError extends Error {
   constructor() {
@@ -8,48 +12,70 @@ export class WrongPasswordError extends Error {
   }
 }
 
+// qpdf reports a non-zero exit for many failure modes (corrupt input, missing
+// file, wrong password, …). We can only distinguish wrong-password reliably
+// from the stderr text.
+const WRONG_PASSWORD_REGEX = /incorrect password supplied|invalid password/i;
+
 @Injectable()
 export class PdfDecryptionService {
   private readonly logger = new Logger(PdfDecryptionService.name);
 
-  decrypt(buffer: Buffer, password: string): Promise<Buffer> {
+  async decrypt(buffer: Buffer, password: string): Promise<Buffer> {
+    const id = randomUUID();
+    const inputPath = join(tmpdir(), `qpdf-in-${id}.pdf`);
+    const outputPath = join(tmpdir(), `qpdf-out-${id}.pdf`);
+
+    try {
+      await writeFile(inputPath, buffer);
+      await this.runQpdf(
+        inputPath,
+        outputPath,
+        password,
+        buffer.length,
+      );
+      return await readFile(outputPath);
+    } finally {
+      await Promise.all([
+        unlink(inputPath).catch(() => undefined),
+        unlink(outputPath).catch(() => undefined),
+      ]);
+    }
+  }
+
+  private runQpdf(
+    inputPath: string,
+    outputPath: string,
+    password: string,
+    inputSize: number,
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const proc = spawn('qpdf', [
         `--password=${password}`,
         '--decrypt',
-        '-',
-        '-',
+        inputPath,
+        outputPath,
       ]);
 
-      const stdoutChunks: Buffer[] = [];
       const stderrChunks: Buffer[] = [];
-
-      proc.stdout.on('data', (chunk: Buffer) => stdoutChunks.push(chunk));
       proc.stderr.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
-
-      // qpdf may close stdin early on errors (e.g. wrong password) while we are
-      // still writing the input buffer. Swallow the resulting EPIPE — the real
-      // outcome arrives via the 'close' event.
-      proc.stdin.on('error', () => {});
 
       proc.on('error', reject);
       proc.on('close', (code: number) => {
         if (code === 0) {
-          resolve(Buffer.concat(stdoutChunks));
+          resolve();
           return;
         }
         const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
         this.logger.error(
-          `qpdf exited with code ${code} (input ${buffer.length} bytes, password length ${password.length}): ${stderr}`,
+          `qpdf exited with code ${code} (input ${inputSize} bytes, password length ${password.length}): ${stderr}`,
         );
-        if (code === 2) {
+        if (WRONG_PASSWORD_REGEX.test(stderr)) {
           reject(new WrongPasswordError());
           return;
         }
-        reject(new Error(`qpdf exited with code ${code}: ${stderr}`));
+        reject(new Error(`qpdf failed: ${stderr}`));
       });
-
-      proc.stdin.end(buffer);
     });
   }
 }
