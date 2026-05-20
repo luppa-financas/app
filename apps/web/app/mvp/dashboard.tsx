@@ -3,6 +3,7 @@
 import { useAuth } from '@clerk/nextjs';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { detectEncryptedPdf } from '../../lib/pdf-crypto';
+import { MonthPicker } from '../../components/MonthPicker';
 import { Cell, Pie, PieChart, Tooltip } from 'recharts';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -316,12 +317,10 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="flex items-center gap-3 flex-wrap">
-            <input
-              type="month"
+            <MonthPicker
               value={billingMonth}
-              onChange={(e) => setBillingMonth(e.target.value)}
+              onChange={setBillingMonth}
               disabled={uploading}
-              className="border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
             <label className="flex items-center gap-3 cursor-pointer w-fit">
               <span className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition">
