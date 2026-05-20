@@ -442,7 +442,7 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {filteredTransactions.map((t) => (
-                    <tr key={t.id} className="group border-b last:border-0 hover:bg-gray-50">
+                    <tr key={t.id} onClick={() => openEdit(t)} className="border-b last:border-0 hover:bg-gray-50 active:bg-indigo-50 cursor-pointer">
                       <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">
                         {new Date(t.date).toLocaleDateString('pt-BR')}
                       </td>
@@ -451,16 +451,12 @@ export default function Dashboard() {
                         {t.alias && <span className="block text-xs text-gray-400">{t.description}</span>}
                       </td>
                       <td className="py-2 pr-4">
-                        <button
-                          onClick={() => openEdit(t)}
-                          aria-label="Editar categoria"
-                          className="group/cat inline-flex items-center gap-1 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full hover:bg-indigo-200 active:bg-indigo-300 transition"
-                        >
+                        <span className="inline-flex items-center gap-1 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
                           {t.category}
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 opacity-40 group-hover/cat:opacity-100 transition-opacity flex-shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 opacity-40 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
                             <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                           </svg>
-                        </button>
+                        </span>
                         {t.subcategory && (
                           <span className="ml-1 text-xs text-gray-500">{t.subcategory}</span>
                         )}
