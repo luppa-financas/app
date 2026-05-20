@@ -3,6 +3,7 @@ import {
   InternalServerErrorException,
   Logger,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -99,6 +100,29 @@ describe('InvoicesService', () => {
 
       await expect(service.create('user-1', file)).rejects.toThrow();
       expect(mockEventEmitter.emit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('create — encrypted PDF', () => {
+    let service: InvoicesService;
+
+    beforeEach(async () => {
+      service = await createService('development');
+    });
+
+    it('should throw UnprocessableEntityException without uploading', async () => {
+      const encryptedBuffer = Buffer.from(
+        '%PDF-1.4\n1 0 obj\n<< /Encrypt 2 0 R >>\nendobj',
+      );
+      const encryptedFile = {
+        ...file,
+        buffer: encryptedBuffer,
+      } as Express.Multer.File;
+
+      await expect(service.create('user-1', encryptedFile)).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+      expect(mockStorageService.upload).not.toHaveBeenCalled();
     });
   });
 

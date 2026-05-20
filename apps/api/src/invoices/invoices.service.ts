@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Invoice } from '@prisma/client';
@@ -25,10 +30,20 @@ export class InvoicesService {
       config.get<string>('NODE_ENV') === 'production' ? 'prod' : 'dev';
   }
 
+  private isEncryptedPdf(buffer: Buffer): boolean {
+    return buffer.toString('latin1').includes('/Encrypt');
+  }
+
   async create(
     userId: string,
     file: Express.Multer.File,
   ): Promise<{ invoiceId: string }> {
+    if (this.isEncryptedPdf(file.buffer)) {
+      throw new UnprocessableEntityException(
+        'PDF protegido por senha. Remova a senha antes de enviar.',
+      );
+    }
+
     const storagePath = await this.storageService.upload(
       INVOICES_BUCKET,
       `${this.envPrefix}/${userId}/${Date.now()}-${file.originalname}`,
