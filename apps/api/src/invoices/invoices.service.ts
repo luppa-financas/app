@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Invoice } from '@prisma/client';
@@ -9,6 +14,10 @@ import {
   InvoiceWithTransactions,
 } from './invoices.repository';
 import { InvoiceCreatedEvent } from './events/invoice-created.event';
+import {
+  PdfDecryptionService,
+  WrongPasswordError,
+} from './pdf-decryption.service';
 
 @Injectable()
 export class InvoicesService {
@@ -19,20 +28,47 @@ export class InvoicesService {
     private readonly storageService: StorageService,
     private readonly invoicesRepository: InvoicesRepository,
     private readonly eventEmitter: EventEmitter2,
+    private readonly pdfDecryptionService: PdfDecryptionService,
     config: ConfigService,
   ) {
     this.envPrefix =
       config.get<string>('NODE_ENV') === 'production' ? 'prod' : 'dev';
   }
 
+  private isEncryptedPdf(buffer: Buffer): boolean {
+    return buffer.toString('latin1').includes('/Encrypt');
+  }
+
   async create(
     userId: string,
     file: Express.Multer.File,
+    password?: string,
   ): Promise<{ invoiceId: string }> {
+    let buffer = file.buffer;
+
+    if (this.isEncryptedPdf(buffer)) {
+      if (!password) {
+        throw new UnprocessableEntityException(
+          'PDF protegido por senha. Remova a senha antes de enviar.',
+        );
+      }
+      try {
+        buffer = await this.pdfDecryptionService.decrypt(buffer, password);
+      } catch (err) {
+        if (err instanceof WrongPasswordError) {
+          throw new UnprocessableEntityException({
+            message: 'Senha incorreta',
+            code: 'WRONG_PASSWORD',
+          });
+        }
+        throw err;
+      }
+    }
+
     const storagePath = await this.storageService.upload(
       INVOICES_BUCKET,
       `${this.envPrefix}/${userId}/${Date.now()}-${file.originalname}`,
-      file.buffer,
+      buffer,
       file.mimetype,
     );
 

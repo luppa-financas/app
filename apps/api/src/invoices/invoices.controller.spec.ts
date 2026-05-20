@@ -41,6 +41,19 @@ describe('InvoicesController', () => {
       expect(mockInvoicesService.create).toHaveBeenCalledWith(
         'user-1',
         pdfFile,
+        undefined,
+      );
+    });
+
+    it('should forward password from body to service', async () => {
+      mockInvoicesService.create.mockResolvedValue({ invoiceId: 'inv-1' });
+
+      await controller.create('user-1', pdfFile, 's3cret');
+
+      expect(mockInvoicesService.create).toHaveBeenCalledWith(
+        'user-1',
+        pdfFile,
+        's3cret',
       );
     });
   });

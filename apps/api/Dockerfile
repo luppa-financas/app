@@ -25,7 +25,8 @@ FROM node:22-alpine AS production
 WORKDIR /app
 ENV NODE_ENV=production
 
-RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001 \
+RUN apk add --no-cache qpdf \
+  && addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001 \
   && npm install -g pnpm@10.33.0
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./

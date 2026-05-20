@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException, RawBodyRequest } from '@nestjs/common';
+import {
+  BadRequestException,
+  NotFoundException,
+  RawBodyRequest,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { UsersController, UserProfileController } from './users.controller';
 import { UsersService } from './users.service';
@@ -125,7 +129,9 @@ describe('UserProfileController', () => {
     it('should propagate NotFoundException when user is not found', async () => {
       mockUsersService.getMe.mockRejectedValue(new NotFoundException());
 
-      await expect(controller.getMe('user_1')).rejects.toThrow(NotFoundException);
+      await expect(controller.getMe('user_1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

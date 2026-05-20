@@ -25,8 +25,16 @@ describe('TransactionsController', () => {
   describe('PUT /transactions/:id', () => {
     const userId = 'user-1';
     const transactionId = 'tx-1';
-    const dto = { alias: 'Uber Eats', category: 'Alimentação', subcategory: 'Delivery' };
-    const updatedTransaction = { id: transactionId, ...dto, needsReview: false };
+    const dto = {
+      alias: 'Uber Eats',
+      category: 'Alimentação',
+      subcategory: 'Delivery',
+    };
+    const updatedTransaction = {
+      id: transactionId,
+      ...dto,
+      needsReview: false,
+    };
 
     it('returns 200 with the updated transaction', async () => {
       mockTransactionsService.update.mockResolvedValue(updatedTransaction);
@@ -34,13 +42,19 @@ describe('TransactionsController', () => {
       const result = await controller.update(transactionId, userId, dto);
 
       expect(result).toEqual(updatedTransaction);
-      expect(mockTransactionsService.update).toHaveBeenCalledWith(transactionId, userId, dto);
+      expect(mockTransactionsService.update).toHaveBeenCalledWith(
+        transactionId,
+        userId,
+        dto,
+      );
     });
 
     it('propagates NotFoundException when transaction belongs to another user', async () => {
       mockTransactionsService.update.mockRejectedValue(new NotFoundException());
 
-      await expect(controller.update(transactionId, userId, dto)).rejects.toThrow(NotFoundException);
+      await expect(
+        controller.update(transactionId, userId, dto),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

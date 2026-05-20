@@ -11,9 +11,17 @@ export class TransactionsService {
     private readonly merchantRulesRepository: MerchantRulesRepository,
   ) {}
 
-  async update(id: string, userId: string, dto: UpdateTransactionDto): Promise<Transaction> {
-    const transaction = await this.transactionsRepository.findByIdAndUserId(id, userId);
-    if (!transaction) throw new NotFoundException(`Transaction ${id} not found`);
+  async update(
+    id: string,
+    userId: string,
+    dto: UpdateTransactionDto,
+  ): Promise<Transaction> {
+    const transaction = await this.transactionsRepository.findByIdAndUserId(
+      id,
+      userId,
+    );
+    if (!transaction)
+      throw new NotFoundException(`Transaction ${id} not found`);
 
     const [updated] = await Promise.all([
       this.transactionsRepository.update(id, {

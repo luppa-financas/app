@@ -42,7 +42,10 @@ export class TransactionsRepository {
     return this.prisma.transaction.findMany({ where: { invoiceId } });
   }
 
-  async findByIdAndUserId(id: string, userId: string): Promise<Transaction | null> {
+  async findByIdAndUserId(
+    id: string,
+    userId: string,
+  ): Promise<Transaction | null> {
     return this.prisma.transaction.findFirst({
       where: { id, invoice: { userId } },
     });
@@ -50,7 +53,12 @@ export class TransactionsRepository {
 
   async update(
     id: string,
-    data: { alias?: string; category?: string; subcategory?: string | null; needsReview?: boolean },
+    data: {
+      alias?: string;
+      category?: string;
+      subcategory?: string | null;
+      needsReview?: boolean;
+    },
   ): Promise<Transaction> {
     return this.prisma.transaction.update({ where: { id }, data });
   }

@@ -18,6 +18,10 @@ import { TransactionsService } from './transactions.service';
     MerchantRulesModule,
   ],
   controllers: [TransactionsController],
-  providers: [TransactionsRepository, TransactionsListener, TransactionsService],
+  providers: [
+    TransactionsRepository,
+    TransactionsListener,
+    TransactionsService,
+  ],
 })
 export class TransactionsModule {}
