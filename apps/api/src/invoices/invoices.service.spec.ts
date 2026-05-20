@@ -67,8 +67,9 @@ describe('InvoicesService', () => {
         userId: 'user-1',
         storagePath: 'dev/user-1/fatura.pdf',
       });
+      const billingMonth = new Date('2025-09-01');
 
-      const result = await service.create('user-1', file);
+      const result = await service.create('user-1', file, billingMonth);
 
       expect(mockStorageService.upload).toHaveBeenCalledWith(
         'invoices',
@@ -80,6 +81,7 @@ describe('InvoicesService', () => {
         userId: 'user-1',
         filename: 'fatura.pdf',
         storagePath: 'dev/user-1/fatura.pdf',
+        billingMonth,
       });
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
         'invoice.created',
@@ -93,9 +95,9 @@ describe('InvoicesService', () => {
         new InternalServerErrorException('upload failed'),
       );
 
-      await expect(service.create('user-1', file)).rejects.toThrow(
-        InternalServerErrorException,
-      );
+      await expect(
+        service.create('user-1', file, new Date('2025-09-01')),
+      ).rejects.toThrow(InternalServerErrorException);
       expect(mockInvoicesRepository.create).not.toHaveBeenCalled();
       expect(mockEventEmitter.emit).not.toHaveBeenCalled();
     });
@@ -104,7 +106,9 @@ describe('InvoicesService', () => {
       mockStorageService.upload.mockResolvedValue('dev/user-1/fatura.pdf');
       mockInvoicesRepository.create.mockRejectedValue(new Error('db error'));
 
-      await expect(service.create('user-1', file)).rejects.toThrow();
+      await expect(
+        service.create('user-1', file, new Date('2025-09-01')),
+      ).rejects.toThrow();
       expect(mockEventEmitter.emit).not.toHaveBeenCalled();
     });
   });
@@ -124,9 +128,9 @@ describe('InvoicesService', () => {
     });
 
     it('should throw UnprocessableEntityException when no password is provided', async () => {
-      await expect(service.create('user-1', encryptedFile)).rejects.toThrow(
-        UnprocessableEntityException,
-      );
+      await expect(
+        service.create('user-1', encryptedFile, new Date('2025-09-01')),
+      ).rejects.toThrow(UnprocessableEntityException);
       expect(mockStorageService.upload).not.toHaveBeenCalled();
       expect(mockPdfDecryptionService.decrypt).not.toHaveBeenCalled();
     });
@@ -141,7 +145,12 @@ describe('InvoicesService', () => {
         storagePath: 'dev/user-1/fatura.pdf',
       });
 
-      const result = await service.create('user-1', encryptedFile, 's3cret');
+      const result = await service.create(
+        'user-1',
+        encryptedFile,
+        new Date('2025-09-01'),
+        's3cret',
+      );
 
       expect(mockPdfDecryptionService.decrypt).toHaveBeenCalledWith(
         encryptedBuffer,
@@ -162,7 +171,7 @@ describe('InvoicesService', () => {
       );
 
       const err = await service
-        .create('user-1', encryptedFile, 'wrong')
+        .create('user-1', encryptedFile, new Date('2025-09-01'), 'wrong')
         .catch((e: unknown) => e);
 
       expect(err).toBeInstanceOf(UnprocessableEntityException);
@@ -181,7 +190,7 @@ describe('InvoicesService', () => {
       );
 
       await expect(
-        service.create('user-1', encryptedFile, 's3cret'),
+        service.create('user-1', encryptedFile, new Date('2025-09-01'), 's3cret'),
       ).rejects.toThrow(/qpdf/);
       expect(mockStorageService.upload).not.toHaveBeenCalled();
     });
@@ -202,7 +211,7 @@ describe('InvoicesService', () => {
         storagePath: 'prod/user-1/fatura.pdf',
       });
 
-      await service.create('user-1', file);
+      await service.create('user-1', file, new Date('2025-09-01'));
 
       expect(mockStorageService.upload).toHaveBeenCalledWith(
         'invoices',

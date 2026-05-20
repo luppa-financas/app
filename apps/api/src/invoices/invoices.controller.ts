@@ -18,6 +18,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { InvoicesService } from './invoices.service';
 import { InvoiceResponseDto } from './dto/invoice-response.dto';
 import { InvoiceDetailResponseDto } from './dto/invoice-detail-response.dto';
+import { CreateInvoiceDto } from './dto/create-invoice.dto';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
@@ -38,9 +39,15 @@ export class InvoicesController {
       }),
     )
     file: Express.Multer.File,
+    @Body() body: CreateInvoiceDto,
     @Body('password') password?: string,
   ): Promise<{ invoiceId: string }> {
-    return this.invoicesService.create(userId, file, password);
+    return this.invoicesService.create(
+      userId,
+      file,
+      new Date(body.billingMonth),
+      password,
+    );
   }
 
   @Get()

@@ -33,7 +33,7 @@ export class InvoiceDetailResponseDto {
   id: string;
   filename: string;
   status: string;
-  createdAt: Date;
+  billingMonth: Date;
   transactions: TransactionDto[];
 
   static from(invoice: InvoiceWithTransactions): InvoiceDetailResponseDto {
@@ -41,7 +41,7 @@ export class InvoiceDetailResponseDto {
       id: invoice.id,
       filename: invoice.filename,
       status: invoice.status,
-      createdAt: invoice.createdAt,
+      billingMonth: invoice.billingMonth,
       transactions: invoice.transactions.map((t) => TransactionDto.from(t)),
     };
   }
