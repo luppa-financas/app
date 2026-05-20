@@ -32,7 +32,7 @@ type InvoiceStatus = 'PENDING' | 'DONE' | 'FAILED';
 type Invoice = {
   id: string;
   status: InvoiceStatus;
-  createdAt: string;
+  billingMonth: string;
 };
 
 type Transaction = {
@@ -67,6 +67,10 @@ export default function Dashboard() {
   const [pendingFile, setPendingFile] = useState<{ name: string; bytes: Uint8Array } | null>(null);
   const [pdfPassword, setPdfPassword] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [billingMonth, setBillingMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const headers = useCallback(async () => {
@@ -79,7 +83,7 @@ export default function Dashboard() {
     const res = await fetch(`${API}/invoices`, { headers: h });
     if (!res.ok) return;
     const data: Invoice[] = await res.json();
-    setInvoices(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    setInvoices(data.sort((a, b) => new Date(b.billingMonth).getTime() - new Date(a.billingMonth).getTime()));
   }, [headers]);
 
   const fetchDetail = useCallback(async (id: string) => {
@@ -165,10 +169,11 @@ export default function Dashboard() {
     }
   }
 
-  async function uploadBytes(filename: string, bytes: Uint8Array, password?: string) {
+  async function uploadBytes(filename: string, bytes: Uint8Array, month: string, password?: string) {
     const h = await headers();
     const body = new FormData();
     body.append('file', new Blob([bytes as BlobPart], { type: 'application/pdf' }), filename);
+    body.append('billingMonth', `${month}-01T00:00:00.000Z`);
     if (password) body.append('password', password);
     const res = await fetch(`${API}/invoices`, { method: 'POST', headers: h, body });
     if (!res.ok) {
@@ -199,7 +204,7 @@ export default function Dashboard() {
 
     setUploading(true);
     try {
-      await uploadBytes(file.name, bytes);
+      await uploadBytes(file.name, bytes, billingMonth);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
     } finally {
@@ -212,7 +217,7 @@ export default function Dashboard() {
     setUploading(true);
     setPasswordError(null);
     try {
-      await uploadBytes(pendingFile.name, pendingFile.bytes, pdfPassword);
+      await uploadBytes(pendingFile.name, pendingFile.bytes, billingMonth, pdfPassword);
       setPendingFile(null);
       setPdfPassword('');
     } catch (err) {
@@ -310,18 +315,27 @@ export default function Dashboard() {
             </div>
           </div>
         ) : (
-          <label className="flex items-center gap-3 cursor-pointer w-fit">
-            <span className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition">
-              {uploading ? 'Enviando…' : 'Selecionar PDF'}
-            </span>
+          <div className="flex items-center gap-3 flex-wrap">
             <input
-              type="file"
-              accept="application/pdf"
-              className="hidden"
+              type="month"
+              value={billingMonth}
+              onChange={(e) => setBillingMonth(e.target.value)}
               disabled={uploading}
-              onChange={handleUpload}
+              className="border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
-          </label>
+            <label className="flex items-center gap-3 cursor-pointer w-fit">
+              <span className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition">
+                {uploading ? 'Enviando…' : 'Selecionar PDF'}
+              </span>
+              <input
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                disabled={uploading}
+                onChange={handleUpload}
+              />
+            </label>
+          </div>
         )}
 
         {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
@@ -345,7 +359,7 @@ export default function Dashboard() {
                   onClick={() => setSelectedId(inv.id)}
                   className="px-3 py-1.5"
                 >
-                  {new Date(inv.createdAt).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
+                  {new Date(inv.billingMonth).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric', timeZone: 'UTC' })}
                   {inv.status === 'PENDING' && <span className="ml-1 text-xs opacity-70">(processando…)</span>}
                   {inv.status === 'FAILED' && <span className="ml-1 text-xs text-red-400">(falhou)</span>}
                 </button>

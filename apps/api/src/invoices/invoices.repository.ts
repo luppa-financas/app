@@ -6,6 +6,7 @@ interface CreateInvoiceData {
   userId: string;
   filename: string;
   storagePath: string;
+  billingMonth: Date;
 }
 
 export type InvoiceWithTransactions = Invoice & { transactions: Transaction[] };

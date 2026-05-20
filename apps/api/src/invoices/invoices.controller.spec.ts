@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { InvoicesController } from './invoices.controller';
 import { InvoicesService } from './invoices.service';
+import { CreateInvoiceDto } from './dto/create-invoice.dto';
 
 const mockInvoicesService = {
   create: jest.fn(),
@@ -9,6 +10,8 @@ const mockInvoicesService = {
   findById: jest.fn(),
   delete: jest.fn(),
 };
+
+const billingMonthDto: CreateInvoiceDto = { billingMonth: '2025-09-01T00:00:00.000Z' };
 
 describe('InvoicesController', () => {
   let controller: InvoicesController;
@@ -35,12 +38,13 @@ describe('InvoicesController', () => {
     it('should return invoiceId for a valid PDF', async () => {
       mockInvoicesService.create.mockResolvedValue({ invoiceId: 'inv-1' });
 
-      const result = await controller.create('user-1', pdfFile);
+      const result = await controller.create('user-1', pdfFile, billingMonthDto);
 
       expect(result).toEqual({ invoiceId: 'inv-1' });
       expect(mockInvoicesService.create).toHaveBeenCalledWith(
         'user-1',
         pdfFile,
+        new Date('2025-09-01T00:00:00.000Z'),
         undefined,
       );
     });
@@ -48,11 +52,12 @@ describe('InvoicesController', () => {
     it('should forward password from body to service', async () => {
       mockInvoicesService.create.mockResolvedValue({ invoiceId: 'inv-1' });
 
-      await controller.create('user-1', pdfFile, 's3cret');
+      await controller.create('user-1', pdfFile, billingMonthDto, 's3cret');
 
       expect(mockInvoicesService.create).toHaveBeenCalledWith(
         'user-1',
         pdfFile,
+        new Date('2025-09-01T00:00:00.000Z'),
         's3cret',
       );
     });
@@ -65,7 +70,7 @@ describe('InvoicesController', () => {
           id: 'inv-1',
           filename: 'fatura.pdf',
           status: 'DONE',
-          createdAt: new Date(),
+          billingMonth: new Date('2025-09-01'),
         },
       ];
       mockInvoicesService.findAll.mockResolvedValue(invoices);
@@ -80,12 +85,12 @@ describe('InvoicesController', () => {
   describe('GET /invoices/:id', () => {
     it('should return invoice detail with transactions mapped to DTO', async () => {
       const txDate = new Date('2026-04-05');
-      const createdAt = new Date('2026-05-01');
+      const billingMonth = new Date('2025-09-01');
       const invoice = {
         id: 'inv-1',
         filename: 'fatura.pdf',
         status: 'DONE',
-        createdAt,
+        billingMonth,
         transactions: [
           {
             id: 'tx-1',
@@ -115,7 +120,7 @@ describe('InvoicesController', () => {
         id: 'inv-1',
         filename: 'fatura.pdf',
         status: 'DONE',
-        createdAt,
+        billingMonth,
         transactions: [
           {
             id: 'tx-1',

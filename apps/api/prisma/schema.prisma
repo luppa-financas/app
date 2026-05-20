@@ -23,6 +23,7 @@ model Invoice {
   filename     String
   storagePath  String
   status       InvoiceStatus @default(PENDING)
+  billingMonth DateTime
   createdAt    DateTime      @default(now())
   transactions Transaction[]
 }
