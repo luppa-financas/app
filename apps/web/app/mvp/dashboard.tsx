@@ -6,6 +6,21 @@ import { Cell, Pie, PieChart, Tooltip } from 'recharts';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
+const CATEGORIES: Record<string, string[]> = {
+  Alimentação: ['Delivery', 'Restaurante', 'Supermercado', 'Padaria / Café', 'Lanchonete / Fast food'],
+  Transporte: ['Uber / 99 / Taxi', 'Combustível', 'Estacionamento', 'Transporte público', 'Pedágio'],
+  Moradia: ['Aluguel', 'Condomínio', 'Água / Luz / Gás', 'Internet / TV', 'Manutenção'],
+  Saúde: ['Farmácia', 'Consulta médica', 'Exame / Laboratório', 'Plano de saúde', 'Academia'],
+  Entretenimento: ['Cinema / Teatro', 'Jogos', 'Bares / Baladas'],
+  Assinaturas: ['Streaming', 'Música', 'Software', 'Outros serviços'],
+  Compras: ['Roupas / Calçados', 'Eletrônicos', 'Casa / Decoração', 'Marketplace', 'Cosméticos / Beleza'],
+  Educação: ['Faculdade / Curso', 'Livros', 'Assinatura de conteúdo'],
+  Viagem: ['Passagem', 'Hospedagem', 'Aluguel de carro', 'Passeios / Atrações'],
+  Finanças: ['Fatura / Boleto', 'Investimento', 'Seguro', 'Tarifa bancária'],
+  Pets: ['Veterinário', 'Ração / Petisco', 'Pet shop / Banho e tosa', 'Medicamento / Vacina'],
+  Outros: [],
+};
+
 const COLORS = [
   '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#3b82f6',
   '#ec4899', '#8b5cf6', '#14b8a6', '#f97316', '#84cc16', '#06b6d4',
@@ -23,11 +38,13 @@ type Transaction = {
   id: string;
   date: string;
   description: string;
+  alias: string | null;
   amount: string;
   type: 'DEBIT' | 'CREDIT';
   category: string;
   subcategory: string | null;
 };
+
 
 type InvoiceDetail = Invoice & { transactions: Transaction[] };
 
@@ -44,6 +61,8 @@ export default function Dashboard() {
   const [filterCategory, setFilterCategory] = useState('');
   const [filterSubcategory, setFilterSubcategory] = useState('');
   const [filterType, setFilterType] = useState<'ALL' | 'DEBIT' | 'CREDIT'>('ALL');
+  const [editForm, setEditForm] = useState<{ transaction: Transaction; alias: string; category: string; subcategory: string } | null>(null);
+  const [saving, setSaving] = useState(false);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const headers = useCallback(async () => {
@@ -89,6 +108,37 @@ export default function Dashboard() {
       }
     }, 3000);
   }, [fetchDetail, fetchInvoices]);
+
+  function openEdit(t: Transaction) {
+    setEditForm({ transaction: t, alias: t.alias ?? t.description, category: t.category, subcategory: t.subcategory ?? '' });
+  }
+
+  async function handleSaveEdit() {
+    if (!editForm) return;
+    setSaving(true);
+    try {
+      const h = await headers();
+      const res = await fetch(`${API}/transactions/${editForm.transaction.id}`, {
+        method: 'PUT',
+        headers: { ...h, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          alias: editForm.alias !== editForm.transaction.description ? editForm.alias : undefined,
+          category: editForm.category,
+          subcategory: editForm.subcategory || null,
+        }),
+      });
+      if (!res.ok) throw new Error('Erro ao salvar');
+      const updated: Transaction = await res.json();
+      setDetail((prev) =>
+        prev
+          ? { ...prev, transactions: prev.transactions.map((t) => (t.id === updated.id ? updated : t)) }
+          : prev,
+      );
+      setEditForm(null);
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleDelete() {
     if (!deleteTargetId) return;
@@ -290,11 +340,25 @@ export default function Dashboard() {
                 </thead>
                 <tbody>
                   {filteredTransactions.map((t) => (
-                    <tr key={t.id} className="border-b last:border-0 hover:bg-gray-50">
+                    <tr key={t.id} className="group border-b last:border-0 hover:bg-gray-50">
                       <td className="py-2 pr-4 text-gray-500 whitespace-nowrap">
                         {new Date(t.date).toLocaleDateString('pt-BR')}
                       </td>
-                      <td className="py-2 pr-4">{t.description}</td>
+                      <td className="py-2 pr-4">
+                        <span className="flex items-center gap-1">
+                          {t.alias ?? t.description}
+                          <button
+                            onClick={() => openEdit(t)}
+                            className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-indigo-600 transition-opacity"
+                            aria-label="Editar transação"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                            </svg>
+                          </button>
+                        </span>
+                        {t.alias && <span className="block text-xs text-gray-400">{t.description}</span>}
+                      </td>
                       <td className="py-2 pr-4">
                         <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{t.category}</span>
                         {t.subcategory && (
@@ -360,6 +424,64 @@ export default function Dashboard() {
       )}
       {detail?.status === 'FAILED' && (
         <p className="text-sm text-red-500 mt-4">Falha ao processar esta fatura.</p>
+      )}
+
+      {editForm && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl border p-6 max-w-sm w-full mx-4 shadow-lg">
+            <h3 className="font-semibold text-gray-900 mb-4">Editar transação</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Nome exibido</label>
+                <input
+                  type="text"
+                  value={editForm.alias}
+                  onChange={(e) => setEditForm((f) => f && { ...f, alias: e.target.value })}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 text-gray-700"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Categoria</label>
+                <select
+                  value={editForm.category}
+                  onChange={(e) => setEditForm((f) => f && { ...f, category: e.target.value, subcategory: '' })}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 text-gray-700 bg-white"
+                >
+                  {Object.keys(CATEGORIES).map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              {CATEGORIES[editForm.category]?.length > 0 && (
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Subcategoria</label>
+                  <select
+                    value={editForm.subcategory}
+                    onChange={(e) => setEditForm((f) => f && { ...f, subcategory: e.target.value })}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 text-gray-700 bg-white"
+                  >
+                    <option value="">Nenhuma</option>
+                    {CATEGORIES[editForm.category].map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setEditForm(null)}
+                disabled={saving}
+                className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={saving}
+                className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition disabled:opacity-50"
+              >
+                {saving ? 'Salvando…' : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {deleteTargetId && (

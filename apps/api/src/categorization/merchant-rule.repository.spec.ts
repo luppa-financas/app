@@ -4,9 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const mockPrisma = {
   merchantRule: {
-    findUnique: jest.fn(),
+    findFirst: jest.fn(),
     findMany: jest.fn(),
-    upsert: jest.fn(),
   },
 };
 
@@ -32,20 +31,19 @@ describe('MerchantRuleRepository', () => {
         category: 'Alimentação',
         subcategory: 'Delivery',
         confidence: 0.95,
-        voteCount: 3,
       };
-      mockPrisma.merchantRule.findUnique.mockResolvedValue(rule);
+      mockPrisma.merchantRule.findFirst.mockResolvedValue(rule);
 
       const result = await repository.findByPattern('IFOOD');
 
-      expect(mockPrisma.merchantRule.findUnique).toHaveBeenCalledWith({
+      expect(mockPrisma.merchantRule.findFirst).toHaveBeenCalledWith({
         where: { pattern: 'IFOOD' },
       });
       expect(result).toBe(rule);
     });
 
     it('should return null when not found', async () => {
-      mockPrisma.merchantRule.findUnique.mockResolvedValue(null);
+      mockPrisma.merchantRule.findFirst.mockResolvedValue(null);
 
       const result = await repository.findByPattern('UNKNOWN');
 
@@ -61,7 +59,6 @@ describe('MerchantRuleRepository', () => {
           category: 'Alimentação',
           subcategory: 'Delivery',
           confidence: 0.95,
-          voteCount: 1,
         },
       ];
       mockPrisma.merchantRule.findMany.mockResolvedValue(rules);
@@ -79,42 +76,6 @@ describe('MerchantRuleRepository', () => {
 
       expect(mockPrisma.merchantRule.findMany).not.toHaveBeenCalled();
       expect(result).toEqual([]);
-    });
-  });
-
-  describe('upsert', () => {
-    it('should create a new rule when pattern does not exist', async () => {
-      await repository.upsert('IFOOD', 'Alimentação', 'Delivery');
-
-      expect(mockPrisma.merchantRule.upsert).toHaveBeenCalledWith({
-        where: { pattern: 'IFOOD' },
-        create: {
-          pattern: 'IFOOD',
-          category: 'Alimentação',
-          subcategory: 'Delivery',
-          confidence: 1,
-          voteCount: 1,
-        },
-        update: {
-          category: 'Alimentação',
-          subcategory: 'Delivery',
-          voteCount: { increment: 1 },
-          confidence: 1,
-        },
-      });
-    });
-
-    it('should update existing rule incrementing voteCount', async () => {
-      await repository.upsert('UBER', 'Transporte', 'Uber / 99 / Taxi');
-
-      expect(mockPrisma.merchantRule.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { pattern: 'UBER' },
-          update: expect.objectContaining({
-            voteCount: { increment: 1 },
-          }) as object,
-        }) as object,
-      );
     });
   });
 });
