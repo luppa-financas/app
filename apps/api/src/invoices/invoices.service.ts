@@ -56,7 +56,10 @@ export class InvoicesService {
         buffer = await this.pdfDecryptionService.decrypt(buffer, password);
       } catch (err) {
         if (err instanceof WrongPasswordError) {
-          throw new UnprocessableEntityException('Senha incorreta');
+          throw new UnprocessableEntityException({
+            message: 'Senha incorreta',
+            code: 'WRONG_PASSWORD',
+          });
         }
         throw err;
       }

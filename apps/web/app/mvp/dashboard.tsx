@@ -172,8 +172,10 @@ export default function Dashboard() {
     if (password) body.append('password', password);
     const res = await fetch(`${API}/invoices`, { method: 'POST', headers: h, body });
     if (!res.ok) {
-      const data = (await res.json().catch(() => null)) as { message?: string } | null;
-      throw new Error(data?.message ?? 'Erro ao enviar fatura');
+      const data = (await res.json().catch(() => null)) as { message?: string; code?: string } | null;
+      const err = new Error(data?.message ?? 'Erro ao enviar fatura') as Error & { code?: string };
+      if (data?.code) err.code = data.code;
+      throw err;
     }
     const { invoiceId } = (await res.json()) as { invoiceId: string };
     await fetchInvoices();
@@ -214,9 +216,10 @@ export default function Dashboard() {
       setPendingFile(null);
       setPdfPassword('');
     } catch (err) {
+      const code = (err as Error & { code?: string }).code;
       const msg = err instanceof Error ? err.message : 'Erro desconhecido';
-      if (msg === 'Senha incorreta') {
-        setPasswordError('Senha incorreta');
+      if (code === 'WRONG_PASSWORD') {
+        setPasswordError(msg);
       } else {
         setError(msg);
         setPendingFile(null);

@@ -156,14 +156,22 @@ describe('InvoicesService', () => {
       expect(result).toEqual({ invoiceId: 'inv-1' });
     });
 
-    it('should throw UnprocessableEntityException with "Senha incorreta" when password is wrong', async () => {
+    it('should throw 422 with code WRONG_PASSWORD when password is wrong', async () => {
       mockPdfDecryptionService.decrypt.mockRejectedValue(
         new WrongPasswordError(),
       );
 
-      await expect(
-        service.create('user-1', encryptedFile, 'wrong'),
-      ).rejects.toThrow(new UnprocessableEntityException('Senha incorreta'));
+      const err = await service
+        .create('user-1', encryptedFile, 'wrong')
+        .catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(UnprocessableEntityException);
+      expect((err as UnprocessableEntityException).getResponse()).toMatchObject(
+        {
+          message: 'Senha incorreta',
+          code: 'WRONG_PASSWORD',
+        },
+      );
       expect(mockStorageService.upload).not.toHaveBeenCalled();
     });
 
