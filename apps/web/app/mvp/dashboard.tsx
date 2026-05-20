@@ -2,6 +2,7 @@
 
 import { useAuth } from '@clerk/nextjs';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { detectEncryptedPdf } from '../../lib/pdf-crypto';
 import { Cell, Pie, PieChart, Tooltip } from 'recharts';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -63,6 +64,9 @@ export default function Dashboard() {
   const [filterType, setFilterType] = useState<'ALL' | 'DEBIT' | 'CREDIT'>('ALL');
   const [editForm, setEditForm] = useState<{ transaction: Transaction; alias: string; category: string; subcategory: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [pendingFile, setPendingFile] = useState<{ name: string; bytes: Uint8Array } | null>(null);
+  const [pdfPassword, setPdfPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const headers = useCallback(async () => {
@@ -161,27 +165,72 @@ export default function Dashboard() {
     }
   }
 
+  async function uploadBytes(filename: string, bytes: Uint8Array, password?: string) {
+    const h = await headers();
+    const body = new FormData();
+    body.append('file', new Blob([bytes as BlobPart], { type: 'application/pdf' }), filename);
+    if (password) body.append('password', password);
+    const res = await fetch(`${API}/invoices`, { method: 'POST', headers: h, body });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => null)) as { message?: string } | null;
+      throw new Error(data?.message ?? 'Erro ao enviar fatura');
+    }
+    const { invoiceId } = (await res.json()) as { invoiceId: string };
+    await fetchInvoices();
+    setSelectedId(invoiceId);
+    startPolling(invoiceId);
+  }
+
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploading(true);
+    e.target.value = '';
     setError(null);
+
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (detectEncryptedPdf(bytes)) {
+      setPendingFile({ name: file.name, bytes });
+      setPdfPassword('');
+      setPasswordError(null);
+      return;
+    }
+
+    setUploading(true);
     try {
-      const h = await headers();
-      const body = new FormData();
-      body.append('file', file);
-      const res = await fetch(`${API}/invoices`, { method: 'POST', headers: h, body });
-      if (!res.ok) throw new Error('Erro ao enviar fatura');
-      const { invoiceId } = await res.json();
-      await fetchInvoices();
-      setSelectedId(invoiceId);
-      startPolling(invoiceId);
+      await uploadBytes(file.name, bytes);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
     } finally {
       setUploading(false);
-      e.target.value = '';
     }
+  }
+
+  async function handlePasswordSubmit() {
+    if (!pendingFile) return;
+    setUploading(true);
+    setPasswordError(null);
+    try {
+      await uploadBytes(pendingFile.name, pendingFile.bytes, pdfPassword);
+      setPendingFile(null);
+      setPdfPassword('');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Erro desconhecido';
+      if (msg === 'Senha incorreta') {
+        setPasswordError('Senha incorreta');
+      } else {
+        setError(msg);
+        setPendingFile(null);
+        setPdfPassword('');
+      }
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleCancelPassword() {
+    setPendingFile(null);
+    setPdfPassword('');
+    setPasswordError(null);
   }
 
   const allTransactions = detail?.transactions ?? [];
@@ -223,18 +272,55 @@ export default function Dashboard() {
       {/* Upload */}
       <section className="bg-white rounded-xl border p-6 mb-6">
         <h2 className="font-semibold mb-4">Enviar fatura</h2>
-        <label className="flex items-center gap-3 cursor-pointer w-fit">
-          <span className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition">
-            {uploading ? 'Enviando…' : 'Selecionar PDF'}
-          </span>
-          <input
-            type="file"
-            accept="application/pdf"
-            className="hidden"
-            disabled={uploading}
-            onChange={handleUpload}
-          />
-        </label>
+
+        {pendingFile ? (
+          <div className="flex flex-col gap-3 max-w-sm">
+            <p className="text-sm text-gray-700">
+              <span className="font-medium">{pendingFile.name}</span> está protegido por senha.
+            </p>
+            <input
+              type="password"
+              placeholder="Senha do PDF"
+              value={pdfPassword}
+              onChange={(e) => { setPdfPassword(e.target.value); setPasswordError(null); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') void handlePasswordSubmit(); }}
+              className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              disabled={uploading}
+              autoFocus
+            />
+            {passwordError && <p className="text-sm text-red-500">{passwordError}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => void handlePasswordSubmit()}
+                disabled={uploading || !pdfPassword}
+                className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition disabled:opacity-50"
+              >
+                {uploading ? 'Enviando…' : 'Confirmar'}
+              </button>
+              <button
+                onClick={handleCancelPassword}
+                disabled={uploading}
+                className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-gray-50 transition disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <label className="flex items-center gap-3 cursor-pointer w-fit">
+            <span className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 transition">
+              {uploading ? 'Enviando…' : 'Selecionar PDF'}
+            </span>
+            <input
+              type="file"
+              accept="application/pdf"
+              className="hidden"
+              disabled={uploading}
+              onChange={handleUpload}
+            />
+          </label>
+        )}
+
         {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
       </section>
 
