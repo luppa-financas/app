@@ -451,11 +451,8 @@ export default function Dashboard() {
                         {t.alias && <span className="block text-xs text-gray-400">{t.description}</span>}
                       </td>
                       <td className="py-2 pr-4">
-                        <span className="inline-flex items-center gap-1 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
+                        <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">
                           {t.category}
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3 opacity-40 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                          </svg>
                         </span>
                         {t.subcategory && (
                           <span className="ml-1 text-xs text-gray-500">{t.subcategory}</span>
