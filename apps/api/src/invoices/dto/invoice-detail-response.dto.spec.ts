@@ -1,8 +1,8 @@
 import { InvoiceDetailResponseDto } from './invoice-detail-response.dto';
-import { Invoice, InvoiceStatus, TransactionType } from '@prisma/client';
+import { InvoiceStatus, TransactionType } from '@prisma/client';
 import { InvoiceWithTransactions } from '../invoices.repository';
 
-const base: InvoiceWithTransactions = {
+const base = {
   id: 'inv-1',
   userId: 'user-1',
   filename: 'fatura.pdf',
@@ -17,7 +17,7 @@ const base: InvoiceWithTransactions = {
       date: new Date('2025-09-15'),
       description: 'Mercado',
       alias: null,
-      amount: '49.90' as unknown as import('@prisma/client/runtime/library').Decimal,
+      amount: 49.9,
       type: TransactionType.DEBIT,
       category: 'Food',
       subcategory: null,
@@ -26,7 +26,7 @@ const base: InvoiceWithTransactions = {
       createdAt: new Date('2026-05-01'),
     },
   ],
-};
+} as unknown as InvoiceWithTransactions;
 
 describe('InvoiceDetailResponseDto.from', () => {
   it('includes billingMonth', () => {
