@@ -54,9 +54,7 @@ describe('PdfDecryptionService', () => {
 
   it('should write input buffer to a temp file before spawning qpdf', async () => {
     readFileMock.mockResolvedValue(Buffer.from('decrypted-pdf-bytes'));
-    spawnMock.mockReturnValue(
-      createMockProcess({ exitCode: 0 }) as never,
-    );
+    spawnMock.mockReturnValue(createMockProcess({ exitCode: 0 }) as never);
 
     await service.decrypt(Buffer.from('encrypted-bytes'), 's3cret');
 
@@ -68,9 +66,7 @@ describe('PdfDecryptionService', () => {
 
   it('should spawn qpdf with --password, --decrypt and the temp file paths', async () => {
     readFileMock.mockResolvedValue(Buffer.from('decrypted-pdf-bytes'));
-    spawnMock.mockReturnValue(
-      createMockProcess({ exitCode: 0 }) as never,
-    );
+    spawnMock.mockReturnValue(createMockProcess({ exitCode: 0 }) as never);
 
     await service.decrypt(Buffer.from('encrypted'), 's3cret');
 
@@ -88,9 +84,7 @@ describe('PdfDecryptionService', () => {
   it('should resolve with the buffer read from the output temp file', async () => {
     const decrypted = Buffer.from('decrypted-pdf-bytes');
     readFileMock.mockResolvedValue(decrypted);
-    spawnMock.mockReturnValue(
-      createMockProcess({ exitCode: 0 }) as never,
-    );
+    spawnMock.mockReturnValue(createMockProcess({ exitCode: 0 }) as never);
 
     const result = await service.decrypt(Buffer.from('encrypted'), 's3cret');
 
@@ -102,9 +96,7 @@ describe('PdfDecryptionService', () => {
 
   it('should unlink both temp files on success', async () => {
     readFileMock.mockResolvedValue(Buffer.from('decrypted'));
-    spawnMock.mockReturnValue(
-      createMockProcess({ exitCode: 0 }) as never,
-    );
+    spawnMock.mockReturnValue(createMockProcess({ exitCode: 0 }) as never);
 
     await service.decrypt(Buffer.from('encrypted'), 's3cret');
 

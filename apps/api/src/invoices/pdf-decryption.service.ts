@@ -28,12 +28,7 @@ export class PdfDecryptionService {
 
     try {
       await writeFile(inputPath, buffer);
-      await this.runQpdf(
-        inputPath,
-        outputPath,
-        password,
-        buffer.length,
-      );
+      await this.runQpdf(inputPath, outputPath, password, buffer.length);
       return await readFile(outputPath);
     } finally {
       await Promise.all([
@@ -68,7 +63,7 @@ export class PdfDecryptionService {
         }
         const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
         this.logger.error(
-          `qpdf exited with code ${code} (input ${inputSize} bytes, password length ${password.length}): ${stderr}`,
+          `qpdf exited with code ${code} (input ${inputSize} bytes): ${stderr}`,
         );
         if (WRONG_PASSWORD_REGEX.test(stderr)) {
           reject(new WrongPasswordError());
