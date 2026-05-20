@@ -25,6 +25,11 @@ export class PdfDecryptionService {
       proc.stdout.on('data', (chunk: Buffer) => stdoutChunks.push(chunk));
       proc.stderr.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
 
+      // qpdf may close stdin early on errors (e.g. wrong password) while we are
+      // still writing the input buffer. Swallow the resulting EPIPE — the real
+      // outcome arrives via the 'close' event.
+      proc.stdin.on('error', () => {});
+
       proc.on('error', reject);
       proc.on('close', (code: number) => {
         if (code === 0) {

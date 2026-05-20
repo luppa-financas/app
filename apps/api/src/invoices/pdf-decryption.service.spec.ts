@@ -114,4 +114,22 @@ describe('PdfDecryptionService', () => {
       service.decrypt(Buffer.from('encrypted'), 's3cret'),
     ).rejects.toThrow(/qpdf/i);
   });
+
+  it('should not crash when stdin emits EPIPE because qpdf closed early', async () => {
+    const proc = createMockProcess({
+      stderrData: 'invalid password',
+      exitCode: 2,
+    });
+    spawnMock.mockReturnValue(proc as never);
+
+    // Simulate qpdf closing stdin before we finish writing the buffer.
+    setImmediate(() => {
+      const epipe = Object.assign(new Error('write EPIPE'), { code: 'EPIPE' });
+      proc.stdin.emit('error', epipe);
+    });
+
+    await expect(
+      service.decrypt(Buffer.from('encrypted'), 'wrong'),
+    ).rejects.toBeInstanceOf(WrongPasswordError);
+  });
 });
