@@ -45,7 +45,7 @@ describe('HomePage', () => {
 
     render(await HomePage());
 
-    expect(screen.getByRole('link', { name: /sign in/i })).toHaveAttribute('href', '/sign-in');
+    expect(screen.getByRole('link', { name: /entrar/i })).toHaveAttribute('href', '/sign-in');
   });
 
   it('renders sign-up link when not authenticated', async () => {
@@ -53,6 +53,6 @@ describe('HomePage', () => {
 
     render(await HomePage());
 
-    expect(screen.getByRole('link', { name: /sign up/i })).toHaveAttribute('href', '/sign-up');
+    expect(screen.getByRole('link', { name: /criar conta/i })).toHaveAttribute('href', '/sign-up');
   });
 });
