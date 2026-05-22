@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Transaction, TransactionType } from '@prisma/client';
+import { Prisma, Transaction, TransactionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface TransactionCreateData {
@@ -61,5 +61,32 @@ export class TransactionsRepository {
     },
   ): Promise<Transaction> {
     return this.prisma.transaction.update({ where: { id }, data });
+  }
+
+  async countByUserAndDescription(
+    userId: string,
+    description: string,
+  ): Promise<number> {
+    return this.prisma.transaction.count({
+      where: { description, invoice: { userId } },
+    });
+  }
+
+  async updateManyByUserAndDescription(
+    userId: string,
+    description: string,
+    data: { category: string; subcategory: string | null },
+    tx?: Prisma.TransactionClient,
+  ): Promise<number> {
+    const client = tx ?? this.prisma;
+    const result = await client.transaction.updateMany({
+      where: { description, invoice: { userId } },
+      data: {
+        category: data.category,
+        subcategory: data.subcategory,
+        needsReview: false,
+      },
+    });
+    return result.count;
   }
 }
