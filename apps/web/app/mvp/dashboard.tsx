@@ -259,7 +259,11 @@ export default function Dashboard() {
   }
 
   function handleSliceToggle(name: string) {
-    selectedCategories.length === 1 ? toggleSubcategory(name) : toggleCategory(name);
+    if (selectedCategories.length === 1) {
+      toggleSubcategory(name);
+    } else {
+      toggleCategory(name);
+    }
   }
 
   function isSliceActive(name: string) {
