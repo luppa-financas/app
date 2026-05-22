@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Prisma } from '@prisma/client';
 import {
   TransactionsRepository,
   TransactionCreateData,
@@ -9,6 +10,8 @@ const mockPrisma = {
   transaction: {
     createMany: jest.fn(),
     findMany: jest.fn(),
+    count: jest.fn(),
+    updateMany: jest.fn(),
   },
 };
 
@@ -89,6 +92,136 @@ describe('TransactionsRepository', () => {
         where: { invoiceId: 'inv-1' },
       });
       expect(result).toBe(rows);
+    });
+  });
+
+  describe('countByUserAndDescription', () => {
+    it('should return 0 when user has no transactions with that description', async () => {
+      mockPrisma.transaction.count.mockResolvedValue(0);
+
+      const result = await repository.countByUserAndDescription(
+        'user-1',
+        'UBER',
+      );
+
+      expect(result).toBe(0);
+    });
+
+    it('should return the count of user transactions matching the description', async () => {
+      mockPrisma.transaction.count.mockResolvedValue(15);
+
+      const result = await repository.countByUserAndDescription(
+        'user-1',
+        'UBER',
+      );
+
+      expect(result).toBe(15);
+    });
+
+    it('should filter by userId via invoice relation (multi-tenancy)', async () => {
+      mockPrisma.transaction.count.mockResolvedValue(0);
+
+      await repository.countByUserAndDescription('user-1', 'UBER');
+
+      expect(mockPrisma.transaction.count).toHaveBeenCalledWith({
+        where: { description: 'UBER', invoice: { userId: 'user-1' } },
+      });
+    });
+
+    it('should use exact description match (not partial)', async () => {
+      mockPrisma.transaction.count.mockResolvedValue(0);
+
+      await repository.countByUserAndDescription('user-1', 'UBER');
+
+      expect(mockPrisma.transaction.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ description: 'UBER' }) as unknown,
+        }),
+      );
+    });
+  });
+
+  describe('updateManyByUserAndDescription', () => {
+    it('should update category and subcategory of all matching transactions', async () => {
+      mockPrisma.transaction.updateMany.mockResolvedValue({ count: 15 });
+
+      await repository.updateManyByUserAndDescription('user-1', 'UBER', {
+        category: 'Transporte',
+        subcategory: 'Uber / 99 / Taxi',
+      });
+
+      expect(mockPrisma.transaction.updateMany).toHaveBeenCalledWith({
+        where: { description: 'UBER', invoice: { userId: 'user-1' } },
+        data: {
+          category: 'Transporte',
+          subcategory: 'Uber / 99 / Taxi',
+          needsReview: false,
+        },
+      });
+    });
+
+    it('should return the number of transactions updated', async () => {
+      mockPrisma.transaction.updateMany.mockResolvedValue({ count: 15 });
+
+      const result = await repository.updateManyByUserAndDescription(
+        'user-1',
+        'UBER',
+        { category: 'Transporte', subcategory: 'Uber / 99 / Taxi' },
+      );
+
+      expect(result).toBe(15);
+    });
+
+    it('should filter by userId via invoice relation (multi-tenancy)', async () => {
+      mockPrisma.transaction.updateMany.mockResolvedValue({ count: 0 });
+
+      await repository.updateManyByUserAndDescription('user-1', 'UBER', {
+        category: 'Transporte',
+        subcategory: null,
+      });
+
+      expect(mockPrisma.transaction.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            invoice: { userId: 'user-1' },
+          }) as unknown,
+        }),
+      );
+    });
+
+    it('should use the provided transaction client when given', async () => {
+      const tx = {
+        transaction: {
+          updateMany: jest.fn().mockResolvedValue({ count: 3 }),
+        },
+      } as unknown as Prisma.TransactionClient;
+
+      const result = await repository.updateManyByUserAndDescription(
+        'user-1',
+        'UBER',
+        { category: 'Transporte', subcategory: null },
+        tx,
+      );
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(tx.transaction.updateMany).toHaveBeenCalled();
+      expect(mockPrisma.transaction.updateMany).not.toHaveBeenCalled();
+      expect(result).toBe(3);
+    });
+
+    it('should set needsReview to false on updated transactions', async () => {
+      mockPrisma.transaction.updateMany.mockResolvedValue({ count: 0 });
+
+      await repository.updateManyByUserAndDescription('user-1', 'UBER', {
+        category: 'Transporte',
+        subcategory: null,
+      });
+
+      expect(mockPrisma.transaction.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ needsReview: false }) as unknown,
+        }),
+      );
     });
   });
 });

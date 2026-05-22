@@ -5,6 +5,8 @@ import { TransactionsService } from './transactions.service';
 
 const mockTransactionsService = {
   update: jest.fn(),
+  countByDescription: jest.fn(),
+  bulkCategorize: jest.fn(),
 };
 
 describe('TransactionsController', () => {
@@ -55,6 +57,61 @@ describe('TransactionsController', () => {
       await expect(
         controller.update(transactionId, userId, dto),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('GET /transactions/count', () => {
+    const userId = 'user-1';
+
+    it('delegates to service.countByDescription with userId and description', async () => {
+      mockTransactionsService.countByDescription.mockResolvedValue(15);
+
+      await controller.count(userId, 'UBER');
+
+      expect(mockTransactionsService.countByDescription).toHaveBeenCalledWith(
+        userId,
+        'UBER',
+      );
+    });
+
+    it('returns { count } with the value from the service', async () => {
+      mockTransactionsService.countByDescription.mockResolvedValue(15);
+
+      const result = await controller.count(userId, 'UBER');
+
+      expect(result).toEqual({ count: 15 });
+    });
+  });
+
+  describe('POST /transactions/bulk-categorize', () => {
+    const userId = 'user-1';
+    const dto = {
+      description: 'UBER',
+      category: 'Transporte',
+      subcategory: 'Uber / 99 / Taxi',
+    };
+
+    it('delegates to service.bulkCategorize with userId and dto', async () => {
+      mockTransactionsService.bulkCategorize.mockResolvedValue({
+        updatedCount: 15,
+      });
+
+      await controller.bulkCategorize(userId, dto);
+
+      expect(mockTransactionsService.bulkCategorize).toHaveBeenCalledWith(
+        userId,
+        dto,
+      );
+    });
+
+    it('returns { updatedCount } from the service', async () => {
+      mockTransactionsService.bulkCategorize.mockResolvedValue({
+        updatedCount: 15,
+      });
+
+      const result = await controller.bulkCategorize(userId, dto);
+
+      expect(result).toEqual({ updatedCount: 15 });
     });
   });
 });

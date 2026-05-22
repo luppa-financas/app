@@ -64,6 +64,9 @@ export default function Dashboard() {
   const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const [filterType, setFilterType] = useState<'ALL' | 'DEBIT' | 'CREDIT'>('ALL');
   const [editForm, setEditForm] = useState<{ transaction: Transaction; alias: string; category: string; subcategory: string } | null>(null);
+  const [matchCount, setMatchCount] = useState<number | null>(null);
+  const [applyToAll, setApplyToAll] = useState(false);
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [pendingFile, setPendingFile] = useState<{ name: string; bytes: Uint8Array } | null>(null);
   const [pdfPassword, setPdfPassword] = useState('');
@@ -73,6 +76,7 @@ export default function Dashboard() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const matchCountAbortRef = useRef<AbortController | null>(null);
 
   const headers = useCallback(async () => {
     const token = await getToken();
@@ -121,12 +125,43 @@ export default function Dashboard() {
     }, 3000);
   }, [fetchDetail, fetchInvoices, setError]);
 
-  function openEdit(t: Transaction) {
+  async function openEdit(t: Transaction) {
     setEditForm({ transaction: t, alias: t.alias ?? t.description, category: t.category, subcategory: t.subcategory ?? '' });
+    setApplyToAll(false);
+    setMatchCount(null);
+
+    matchCountAbortRef.current?.abort();
+    const controller = new AbortController();
+    matchCountAbortRef.current = controller;
+
+    try {
+      const h = await headers();
+      const res = await fetch(
+        `${API}/transactions/count?description=${encodeURIComponent(t.description)}`,
+        { headers: h, signal: controller.signal },
+      );
+      if (res.ok) {
+        const { count } = (await res.json()) as { count: number };
+        setMatchCount(count);
+      }
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') setMatchCount(null);
+    }
+  }
+
+  function closeEdit() {
+    setEditForm(null);
+    setApplyToAll(false);
+    setMatchCount(null);
+    setBulkConfirmOpen(false);
   }
 
   async function handleSaveEdit() {
     if (!editForm) return;
+    if (applyToAll) {
+      setBulkConfirmOpen(true);
+      return;
+    }
     setSaving(true);
     try {
       const h = await headers();
@@ -146,7 +181,29 @@ export default function Dashboard() {
           ? { ...prev, transactions: prev.transactions.map((t) => (t.id === updated.id ? updated : t)) }
           : prev,
       );
-      setEditForm(null);
+      closeEdit();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleConfirmBulk() {
+    if (!editForm) return;
+    setSaving(true);
+    try {
+      const h = await headers();
+      const res = await fetch(`${API}/transactions/bulk-categorize`, {
+        method: 'POST',
+        headers: { ...h, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: editForm.transaction.description,
+          category: editForm.category,
+          subcategory: editForm.subcategory || null,
+        }),
+      });
+      if (!res.ok) throw new Error('Erro ao atualizar em massa');
+      if (selectedId) await fetchDetail(selectedId);
+      closeEdit();
     } finally {
       setSaving(false);
     }
@@ -592,8 +649,12 @@ export default function Dashboard() {
                   type="text"
                   value={editForm.alias}
                   onChange={(e) => setEditForm((f) => f && { ...f, alias: e.target.value })}
-                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 text-gray-700"
+                  disabled={applyToAll}
+                  className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 text-gray-700 disabled:bg-gray-100 disabled:text-gray-400"
                 />
+                {applyToAll && (
+                  <p className="text-xs text-gray-400 mt-1">Nome exibido não se aplica a edição em massa</p>
+                )}
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Categoria</label>
@@ -618,10 +679,24 @@ export default function Dashboard() {
                   </select>
                 </div>
               )}
+              {matchCount !== null && matchCount > 1 && (
+                <label className="flex items-start gap-2 cursor-pointer pt-1">
+                  <input
+                    type="checkbox"
+                    checked={applyToAll}
+                    onChange={(e) => setApplyToAll(e.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Aplicar a todas as {matchCount} transações com{' '}
+                    <span className="font-medium">&quot;{editForm.transaction.description}&quot;</span>
+                  </span>
+                </label>
+              )}
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <button
-                onClick={() => setEditForm(null)}
+                onClick={closeEdit}
                 disabled={saving}
                 className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
               >
@@ -632,7 +707,42 @@ export default function Dashboard() {
                 disabled={saving}
                 className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition disabled:opacity-50"
               >
-                {saving ? 'Salvando…' : 'Salvar'}
+                {saving
+                  ? 'Salvando…'
+                  : applyToAll && matchCount
+                    ? `Aplicar a ${matchCount} transações`
+                    : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkConfirmOpen && editForm && matchCount !== null && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl border p-6 max-w-sm w-full mx-4 shadow-lg">
+            <h3 className="font-semibold text-gray-900 mb-2">Atualizar {matchCount} transações?</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Todas as transações com a descrição{' '}
+              <span className="font-medium">&quot;{editForm.transaction.description}&quot;</span> serão categorizadas
+              como <span className="font-medium">{editForm.category}</span>
+              {editForm.subcategory && <> / <span className="font-medium">{editForm.subcategory}</span></>}.
+              Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setBulkConfirmOpen(false)}
+                disabled={saving}
+                className="px-4 py-2 text-sm rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmBulk}
+                disabled={saving}
+                className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition disabled:opacity-50"
+              >
+                {saving ? 'Aplicando…' : 'Confirmar'}
               </button>
             </div>
           </div>

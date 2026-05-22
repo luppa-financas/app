@@ -11,7 +11,9 @@ const mockInvoicesService = {
   delete: jest.fn(),
 };
 
-const billingMonthDto: CreateInvoiceDto = { billingMonth: '2025-09-01T00:00:00.000Z' };
+const billingMonthDto: CreateInvoiceDto = {
+  billingMonth: '2025-09-01T00:00:00.000Z',
+};
 
 describe('InvoicesController', () => {
   let controller: InvoicesController;
@@ -38,7 +40,11 @@ describe('InvoicesController', () => {
     it('should return invoiceId for a valid PDF', async () => {
       mockInvoicesService.create.mockResolvedValue({ invoiceId: 'inv-1' });
 
-      const result = await controller.create('user-1', pdfFile, billingMonthDto);
+      const result = await controller.create(
+        'user-1',
+        pdfFile,
+        billingMonthDto,
+      );
 
       expect(result).toEqual({ invoiceId: 'inv-1' });
       expect(mockInvoicesService.create).toHaveBeenCalledWith(

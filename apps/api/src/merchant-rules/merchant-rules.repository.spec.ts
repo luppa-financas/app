@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { MerchantRuleSource } from '@prisma/client';
+import { MerchantRuleSource, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { MerchantRulesRepository } from './merchant-rules.repository';
 
@@ -80,6 +80,20 @@ describe('MerchantRulesRepository', () => {
           }) as unknown,
         }),
       );
+    });
+
+    it('uses the provided transaction client when given', async () => {
+      const tx = {
+        merchantRule: {
+          upsert: jest.fn().mockResolvedValue(undefined),
+        },
+      } as unknown as Prisma.TransactionClient;
+
+      await repository.upsert(input, tx);
+
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      expect(tx.merchantRule.upsert).toHaveBeenCalled();
+      expect(mockPrisma.merchantRule.upsert).not.toHaveBeenCalled();
     });
   });
 });
