@@ -114,9 +114,12 @@ export default function Dashboard() {
         clearInterval(pollingRef.current!);
         pollingRef.current = null;
         fetchInvoices();
+        if (data.status === 'FAILED') {
+          setError('Não foi possível processar a fatura. Verifique se o arquivo enviado é uma fatura de cartão de crédito válida.');
+        }
       }
     }, 3000);
-  }, [fetchDetail, fetchInvoices]);
+  }, [fetchDetail, fetchInvoices, setError]);
 
   function openEdit(t: Transaction) {
     setEditForm({ transaction: t, alias: t.alias ?? t.description, category: t.category, subcategory: t.subcategory ?? '' });
