@@ -190,7 +190,12 @@ describe('InvoicesService', () => {
       );
 
       await expect(
-        service.create('user-1', encryptedFile, new Date('2025-09-01'), 's3cret'),
+        service.create(
+          'user-1',
+          encryptedFile,
+          new Date('2025-09-01'),
+          's3cret',
+        ),
       ).rejects.toThrow(/qpdf/);
       expect(mockStorageService.upload).not.toHaveBeenCalled();
     });

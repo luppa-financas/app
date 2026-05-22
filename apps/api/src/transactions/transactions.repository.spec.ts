@@ -133,11 +133,11 @@ describe('TransactionsRepository', () => {
 
       await repository.countByUserAndDescription('user-1', 'UBER');
 
-      const call = mockPrisma.transaction.count.mock.calls[0][0] as {
-        where: { description: unknown };
-      };
-      expect(call.where.description).toBe('UBER');
-      expect(typeof call.where.description).toBe('string');
+      expect(mockPrisma.transaction.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ description: 'UBER' }) as unknown,
+        }),
+      );
     });
   });
 
@@ -180,10 +180,13 @@ describe('TransactionsRepository', () => {
         subcategory: null,
       });
 
-      const call = mockPrisma.transaction.updateMany.mock.calls[0][0] as {
-        where: { invoice: { userId: string } };
-      };
-      expect(call.where.invoice).toEqual({ userId: 'user-1' });
+      expect(mockPrisma.transaction.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            invoice: { userId: 'user-1' },
+          }) as unknown,
+        }),
+      );
     });
 
     it('should use the provided transaction client when given', async () => {
@@ -200,6 +203,7 @@ describe('TransactionsRepository', () => {
         tx,
       );
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(tx.transaction.updateMany).toHaveBeenCalled();
       expect(mockPrisma.transaction.updateMany).not.toHaveBeenCalled();
       expect(result).toBe(3);
@@ -213,10 +217,11 @@ describe('TransactionsRepository', () => {
         subcategory: null,
       });
 
-      const call = mockPrisma.transaction.updateMany.mock.calls[0][0] as {
-        data: { needsReview: boolean };
-      };
-      expect(call.data.needsReview).toBe(false);
+      expect(mockPrisma.transaction.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ needsReview: false }) as unknown,
+        }),
+      );
     });
   });
 });

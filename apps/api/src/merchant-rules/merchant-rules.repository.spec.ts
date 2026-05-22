@@ -91,6 +91,7 @@ describe('MerchantRulesRepository', () => {
 
       await repository.upsert(input, tx);
 
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(tx.merchantRule.upsert).toHaveBeenCalled();
       expect(mockPrisma.merchantRule.upsert).not.toHaveBeenCalled();
     });

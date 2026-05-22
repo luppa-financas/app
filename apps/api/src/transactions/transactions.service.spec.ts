@@ -233,9 +233,7 @@ describe('TransactionsService', () => {
     it('propagates errors when the merchant rule upsert fails', async () => {
       mockMerchantRulesRepository.upsert.mockRejectedValue(new Error('boom'));
 
-      await expect(service.bulkCategorize(userId, dto)).rejects.toThrow(
-        'boom',
-      );
+      await expect(service.bulkCategorize(userId, dto)).rejects.toThrow('boom');
     });
 
     it('treats missing subcategory as null', async () => {
