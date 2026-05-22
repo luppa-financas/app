@@ -60,8 +60,8 @@ export default function Dashboard() {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [filterCategory, setFilterCategory] = useState('');
-  const [filterSubcategory, setFilterSubcategory] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>([]);
   const [filterType, setFilterType] = useState<'ALL' | 'DEBIT' | 'CREDIT'>('ALL');
   const [editForm, setEditForm] = useState<{ transaction: Transaction; alias: string; category: string; subcategory: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -101,8 +101,8 @@ export default function Dashboard() {
   useEffect(() => {
     if (!selectedId) return;
     fetchDetail(selectedId);
-    setFilterCategory('');
-    setFilterSubcategory('');
+    setSelectedCategories([]);
+    setSelectedSubcategories([]);
     setFilterType('ALL');
   }, [selectedId, fetchDetail]);
 
@@ -245,31 +245,60 @@ export default function Dashboard() {
     setPasswordError(null);
   }
 
+  function toggleCategory(cat: string) {
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+    setSelectedSubcategories([]);
+  }
+
+  function toggleSubcategory(sub: string) {
+    setSelectedSubcategories((prev) =>
+      prev.includes(sub) ? prev.filter((s) => s !== sub) : [...prev, sub]
+    );
+  }
+
+  function handleSliceToggle(name: string) {
+    if (selectedCategories.length === 1) {
+      toggleSubcategory(name);
+    } else {
+      toggleCategory(name);
+    }
+  }
+
+  function isSliceActive(name: string) {
+    return selectedCategories.length === 1
+      ? selectedSubcategories.length === 0 || selectedSubcategories.includes(name)
+      : selectedCategories.length === 0 || selectedCategories.includes(name);
+  }
+
   const allTransactions = detail?.transactions ?? [];
 
   const categories = [...new Set(allTransactions.map((t) => t.category))].sort();
   const subcategories = [...new Set(
     allTransactions
-      .filter((t) => !filterCategory || t.category === filterCategory)
+      .filter((t) => selectedCategories.length === 0 || selectedCategories.includes(t.category))
       .map((t) => t.subcategory)
       .filter((s): s is string => s !== null)
   )].sort();
 
   const filteredTransactions = allTransactions.filter((t) => {
-    if (filterCategory && t.category !== filterCategory) return false;
-    if (filterSubcategory && t.subcategory !== filterSubcategory) return false;
+    if (selectedCategories.length > 0 && !selectedCategories.includes(t.category)) return false;
+    if (selectedSubcategories.length > 0 && !selectedSubcategories.includes(t.subcategory ?? '')) return false;
     if (filterType !== 'ALL' && t.type !== filterType) return false;
     return true;
   });
 
-  const hasFilters = filterCategory !== '' || filterSubcategory !== '' || filterType !== 'ALL';
+  const hasFilters = selectedCategories.length > 0 || selectedSubcategories.length > 0 || filterType !== 'ALL';
 
   const debits = filteredTransactions.filter((t) => t.type === 'DEBIT');
 
+  const showSubcategories = selectedCategories.length === 1;
   const pieData = debits.length
     ? Object.entries(
         debits.reduce<Record<string, number>>((acc, t) => {
-          acc[t.category] = (acc[t.category] ?? 0) + parseFloat(t.amount);
+          const key = showSubcategories ? (t.subcategory ?? 'Sem subcategoria') : t.category;
+          acc[key] = (acc[key] ?? 0) + parseFloat(t.amount);
           return acc;
         }, {})
       ).map(([name, value]) => ({ name, value: parseFloat(value.toFixed(2)) }))
@@ -393,45 +422,61 @@ export default function Dashboard() {
             </div>
 
             {/* Filters */}
-            <div className="flex flex-wrap gap-2 mb-4">
-              <select
-                value={filterCategory}
-                onChange={(e) => { setFilterCategory(e.target.value); setFilterSubcategory(''); }}
-                className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 text-gray-700 bg-white"
-              >
-                <option value="">Todas as categorias</option>
-                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+            <div className="mb-4 space-y-2">
+              <div className="flex flex-wrap gap-1.5">
+                {categories.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => toggleCategory(c)}
+                    className={`text-xs px-3 py-1 rounded-full border transition ${
+                      selectedCategories.includes(c)
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-indigo-400'
+                    }`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
 
               {subcategories.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {subcategories.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => toggleSubcategory(s)}
+                      className={`text-xs px-3 py-1 rounded-full border transition ${
+                        selectedSubcategories.includes(s)
+                          ? 'bg-gray-700 text-white border-gray-700'
+                          : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 items-center">
                 <select
-                  value={filterSubcategory}
-                  onChange={(e) => setFilterSubcategory(e.target.value)}
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value as 'ALL' | 'DEBIT' | 'CREDIT')}
                   className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 text-gray-700 bg-white"
                 >
-                  <option value="">Todas as subcategorias</option>
-                  {subcategories.map((s) => <option key={s} value={s}>{s}</option>)}
+                  <option value="ALL">Todos os tipos</option>
+                  <option value="DEBIT">Saídas</option>
+                  <option value="CREDIT">Entradas</option>
                 </select>
-              )}
 
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value as 'ALL' | 'DEBIT' | 'CREDIT')}
-                className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 text-gray-700 bg-white"
-              >
-                <option value="ALL">Todos os tipos</option>
-                <option value="DEBIT">Saídas</option>
-                <option value="CREDIT">Entradas</option>
-              </select>
-
-              {hasFilters && (
-                <button
-                  onClick={() => { setFilterCategory(''); setFilterSubcategory(''); setFilterType('ALL'); }}
-                  className="text-sm text-indigo-600 hover:text-indigo-800 px-2"
-                >
-                  Limpar filtros
-                </button>
-              )}
+                {hasFilters && (
+                  <button
+                    onClick={() => { setSelectedCategories([]); setSelectedSubcategories([]); setFilterType('ALL'); }}
+                    className="text-sm text-indigo-600 hover:text-indigo-800 px-2"
+                  >
+                    Limpar filtros
+                  </button>
+                )}
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -473,7 +518,9 @@ export default function Dashboard() {
 
           {/* Pie chart */}
           <section className="bg-white rounded-xl border p-6">
-            <h2 className="font-semibold mb-4 text-gray-900">Por categoria</h2>
+            <h2 className="font-semibold mb-4 text-gray-900">
+              {selectedCategories.length === 1 ? selectedCategories[0] : 'Por categoria'}
+            </h2>
             <PieChart width={240} height={240}>
               <Pie
                 data={pieData}
@@ -483,9 +530,14 @@ export default function Dashboard() {
                 outerRadius={110}
                 paddingAngle={2}
                 dataKey="value"
+                style={{ cursor: 'pointer' }}
+                onClick={(entry) => {
+                  const name = (entry as { name?: string }).name;
+                  if (name) handleSliceToggle(name);
+                }}
               >
-                {pieData.map((_, i) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="none" />
+                {pieData.map((entry, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="none" opacity={isSliceActive(entry.name) ? 1 : 0.3} />
                 ))}
               </Pie>
               <Tooltip
@@ -494,22 +546,29 @@ export default function Dashboard() {
               />
             </PieChart>
             <ul className="mt-4 space-y-2">
-              {pieData
+              {[...pieData]
                 .sort((a, b) => b.value - a.value)
-                .map((entry) => (
-                  <li key={entry.name} className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2">
-                      <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: COLORS[pieData.indexOf(entry) % COLORS.length] }} />
-                      <span className="text-gray-700">{entry.name}</span>
-                    </span>
-                    <span className="text-gray-500 tabular-nums">
-                      R$ {entry.value.toFixed(2)}
-                      <span className="ml-2 text-xs text-gray-400">
-                        {((entry.value / total) * 100).toFixed(0)}%
+                .map((entry) => {
+                  const colorIdx = pieData.indexOf(entry);
+                  return (
+                    <li
+                      key={entry.name}
+                      onClick={() => handleSliceToggle(entry.name)}
+                      className={`flex items-center justify-between text-sm cursor-pointer transition-opacity ${isSliceActive(entry.name) ? 'opacity-100' : 'opacity-30'}`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ background: COLORS[colorIdx % COLORS.length] }} />
+                        <span className="text-gray-700">{entry.name}</span>
                       </span>
-                    </span>
-                  </li>
-                ))}
+                      <span className="text-gray-500 tabular-nums">
+                        R$ {entry.value.toFixed(2)}
+                        <span className="ml-2 text-xs text-gray-400">
+                          {((entry.value / total) * 100).toFixed(0)}%
+                        </span>
+                      </span>
+                    </li>
+                  );
+                })}
             </ul>
           </section>
         </div>
