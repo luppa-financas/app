@@ -130,26 +130,31 @@ These skills must be invoked using the Skill tool — not just referenced mental
 ## Useful commands
 
 ```bash
-# From root (via Turborepo)
-pnpm build            # build all apps
-pnpm test             # run all tests
+# Docker stack (postgres + api)
+make dev                         # sobe stack, segue logs da api
+make dev-stop                    # para containers
+make dev-reset                   # limpa volumes (banco zerado)
+make migrate                     # aplica migrations pendentes (prisma migrate deploy)
+make migrate-create NAME=foo     # cria nova migration a partir do schema.prisma
+make migrate-reset               # reset completo (apaga e re-aplica tudo)
+make studio                      # Prisma Studio
 
-# Makefile shortcuts (from root)
-make dev-api          # API dev server (port 3333)
-make dev-web          # Web dev server (port 3000)
-make test             # run all tests
-make health           # check API health
+# Execução no host (sem Docker)
+make dev-web                     # Next.js (porta 3000)
+make dev-api                     # NestJS direto (porta 3333)
+
+# Comuns
+make build                       # build all apps
+make test                        # all tests
+make health                      # API health check
 
 # API (apps/api)
-pnpm test             # unit tests
-pnpm test:watch       # watch mode
-pnpm test:e2e         # e2e tests
-pnpm start:dev        # dev server with hot reload
-
-# Web (apps/web)
-pnpm dev              # dev server
-pnpm build            # production build
+pnpm test                        # unit tests
+pnpm test:watch                  # watch mode
+pnpm test:e2e                    # e2e tests
 ```
+
+> Setup completo do ambiente local em `CONTRIBUTING.md`.
 
 ## End of day
 

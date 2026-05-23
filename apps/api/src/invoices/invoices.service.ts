@@ -4,7 +4,6 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Invoice } from '@prisma/client';
 import { StorageService } from '../storage/storage.service';
@@ -22,18 +21,13 @@ import {
 @Injectable()
 export class InvoicesService {
   private readonly logger = new Logger(InvoicesService.name);
-  private readonly envPrefix: string;
 
   constructor(
     private readonly storageService: StorageService,
     private readonly invoicesRepository: InvoicesRepository,
     private readonly eventEmitter: EventEmitter2,
     private readonly pdfDecryptionService: PdfDecryptionService,
-    config: ConfigService,
-  ) {
-    this.envPrefix =
-      config.get<string>('NODE_ENV') === 'production' ? 'prod' : 'dev';
-  }
+  ) {}
 
   private isEncryptedPdf(buffer: Buffer): boolean {
     return buffer.toString('latin1').includes('/Encrypt');
@@ -68,7 +62,7 @@ export class InvoicesService {
 
     const storagePath = await this.storageService.upload(
       INVOICES_BUCKET,
-      `${this.envPrefix}/${userId}/${Date.now()}-${file.originalname}`,
+      `${userId}/${Date.now()}-${file.originalname}`,
       buffer,
       file.mimetype,
     );

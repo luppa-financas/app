@@ -5,7 +5,6 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InvoicesService } from './invoices.service';
 import { InvoicesRepository } from './invoices.repository';
@@ -33,7 +32,7 @@ const file = {
   mimetype: 'application/pdf',
 } as Express.Multer.File;
 
-async function createService(nodeEnv: string): Promise<InvoicesService> {
+async function createService(): Promise<InvoicesService> {
   const module: TestingModule = await Test.createTestingModule({
     providers: [
       InvoicesService,
@@ -41,10 +40,6 @@ async function createService(nodeEnv: string): Promise<InvoicesService> {
       { provide: InvoicesRepository, useValue: mockInvoicesRepository },
       { provide: EventEmitter2, useValue: mockEventEmitter },
       { provide: PdfDecryptionService, useValue: mockPdfDecryptionService },
-      {
-        provide: ConfigService,
-        useValue: { get: jest.fn().mockReturnValue(nodeEnv) },
-      },
     ],
   }).compile();
   return module.get<InvoicesService>(InvoicesService);
@@ -53,19 +48,19 @@ async function createService(nodeEnv: string): Promise<InvoicesService> {
 describe('InvoicesService', () => {
   beforeEach(() => jest.resetAllMocks());
 
-  describe('create (development)', () => {
+  describe('create', () => {
     let service: InvoicesService;
 
     beforeEach(async () => {
-      service = await createService('development');
+      service = await createService();
     });
 
-    it('should upload under dev/ prefix, create invoice, emit event and return invoiceId', async () => {
-      mockStorageService.upload.mockResolvedValue('dev/user-1/fatura.pdf');
+    it('should upload with user-scoped path, create invoice, emit event and return invoiceId', async () => {
+      mockStorageService.upload.mockResolvedValue('local/user-1/fatura.pdf');
       mockInvoicesRepository.create.mockResolvedValue({
         id: 'inv-1',
         userId: 'user-1',
-        storagePath: 'dev/user-1/fatura.pdf',
+        storagePath: 'local/user-1/fatura.pdf',
       });
       const billingMonth = new Date('2025-09-01');
 
@@ -73,14 +68,14 @@ describe('InvoicesService', () => {
 
       expect(mockStorageService.upload).toHaveBeenCalledWith(
         'invoices',
-        expect.stringMatching(/^dev\/user-1\//),
+        expect.stringMatching(/^user-1\/\d+-fatura\.pdf$/),
         file.buffer,
         'application/pdf',
       );
       expect(mockInvoicesRepository.create).toHaveBeenCalledWith({
         userId: 'user-1',
         filename: 'fatura.pdf',
-        storagePath: 'dev/user-1/fatura.pdf',
+        storagePath: 'local/user-1/fatura.pdf',
         billingMonth,
       });
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
@@ -103,7 +98,7 @@ describe('InvoicesService', () => {
     });
 
     it('should not emit event if repository create fails', async () => {
-      mockStorageService.upload.mockResolvedValue('dev/user-1/fatura.pdf');
+      mockStorageService.upload.mockResolvedValue('local/user-1/fatura.pdf');
       mockInvoicesRepository.create.mockRejectedValue(new Error('db error'));
 
       await expect(
@@ -124,7 +119,7 @@ describe('InvoicesService', () => {
     } as Express.Multer.File;
 
     beforeEach(async () => {
-      service = await createService('development');
+      service = await createService();
     });
 
     it('should throw UnprocessableEntityException when no password is provided', async () => {
@@ -138,11 +133,11 @@ describe('InvoicesService', () => {
     it('should decrypt and upload the decrypted buffer when password is correct', async () => {
       const decrypted = Buffer.from('decrypted-pdf');
       mockPdfDecryptionService.decrypt.mockResolvedValue(decrypted);
-      mockStorageService.upload.mockResolvedValue('dev/user-1/fatura.pdf');
+      mockStorageService.upload.mockResolvedValue('local/user-1/fatura.pdf');
       mockInvoicesRepository.create.mockResolvedValue({
         id: 'inv-1',
         userId: 'user-1',
-        storagePath: 'dev/user-1/fatura.pdf',
+        storagePath: 'local/user-1/fatura.pdf',
       });
 
       const result = await service.create(
@@ -158,7 +153,7 @@ describe('InvoicesService', () => {
       );
       expect(mockStorageService.upload).toHaveBeenCalledWith(
         'invoices',
-        expect.stringMatching(/^dev\/user-1\//),
+        expect.stringMatching(/^user-1\/\d+-fatura\.pdf$/),
         decrypted,
         'application/pdf',
       );
@@ -201,37 +196,11 @@ describe('InvoicesService', () => {
     });
   });
 
-  describe('create (production)', () => {
-    let service: InvoicesService;
-
-    beforeEach(async () => {
-      service = await createService('production');
-    });
-
-    it('should upload under prod/ prefix', async () => {
-      mockStorageService.upload.mockResolvedValue('prod/user-1/fatura.pdf');
-      mockInvoicesRepository.create.mockResolvedValue({
-        id: 'inv-1',
-        userId: 'user-1',
-        storagePath: 'prod/user-1/fatura.pdf',
-      });
-
-      await service.create('user-1', file, new Date('2025-09-01'));
-
-      expect(mockStorageService.upload).toHaveBeenCalledWith(
-        'invoices',
-        expect.stringMatching(/^prod\/user-1\//),
-        file.buffer,
-        'application/pdf',
-      );
-    });
-  });
-
   describe('findAll', () => {
     let service: InvoicesService;
 
     beforeEach(async () => {
-      service = await createService('development');
+      service = await createService();
     });
 
     it('should return invoices for the given userId', async () => {
@@ -251,7 +220,7 @@ describe('InvoicesService', () => {
     let service: InvoicesService;
 
     beforeEach(async () => {
-      service = await createService('development');
+      service = await createService();
     });
 
     it('should return the invoice with transactions when found', async () => {
@@ -281,7 +250,7 @@ describe('InvoicesService', () => {
     let service: InvoicesService;
 
     beforeEach(async () => {
-      service = await createService('development');
+      service = await createService();
     });
 
     it('should throw NotFoundException when invoice is not found', async () => {
@@ -295,7 +264,7 @@ describe('InvoicesService', () => {
     it('should call deleteById and storageService.delete on success', async () => {
       mockInvoicesRepository.findById.mockResolvedValue({
         id: 'inv-1',
-        storagePath: 'dev/user-1/fatura.pdf',
+        storagePath: 'local/user-1/fatura.pdf',
       });
       mockInvoicesRepository.deleteById.mockResolvedValue(undefined);
       mockStorageService.delete.mockResolvedValue(undefined);
@@ -308,14 +277,14 @@ describe('InvoicesService', () => {
       );
       expect(mockStorageService.delete).toHaveBeenCalledWith(
         'invoices',
-        'dev/user-1/fatura.pdf',
+        'local/user-1/fatura.pdf',
       );
     });
 
     it('should not throw when storageService.delete fails', async () => {
       mockInvoicesRepository.findById.mockResolvedValue({
         id: 'inv-1',
-        storagePath: 'dev/user-1/fatura.pdf',
+        storagePath: 'local/user-1/fatura.pdf',
       });
       mockInvoicesRepository.deleteById.mockResolvedValue(undefined);
       mockStorageService.delete.mockRejectedValue(new Error('storage error'));
@@ -326,7 +295,7 @@ describe('InvoicesService', () => {
     it('should log error when storageService.delete fails', async () => {
       mockInvoicesRepository.findById.mockResolvedValue({
         id: 'inv-1',
-        storagePath: 'dev/user-1/fatura.pdf',
+        storagePath: 'local/user-1/fatura.pdf',
       });
       mockInvoicesRepository.deleteById.mockResolvedValue(undefined);
       mockStorageService.delete.mockRejectedValue(new Error('storage error'));

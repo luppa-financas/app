@@ -3,14 +3,20 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_CLIENT } from './storage.constants';
 
 @Injectable()
 export class StorageService {
+  private readonly prefix: string;
+
   constructor(
     @Inject(SUPABASE_CLIENT) private readonly supabase: SupabaseClient,
-  ) {}
+    config: ConfigService,
+  ) {
+    this.prefix = config.getOrThrow<string>('STORAGE_PREFIX');
+  }
 
   async upload(
     bucket: string,
@@ -20,7 +26,7 @@ export class StorageService {
   ): Promise<string> {
     const { data, error } = await this.supabase.storage
       .from(bucket)
-      .upload(path, file, {
+      .upload(`${this.prefix}${path}`, file, {
         contentType: mimeType,
         upsert: false,
       });
