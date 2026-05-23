@@ -57,7 +57,7 @@ export function InvoiceBarChart({ invoices }: Props) {
             width={52}
           />
           <Tooltip
-            formatter={(v: number) => [`R$ ${v.toFixed(2)}`, 'Total']}
+            formatter={(v) => [`R$ ${Number(v).toFixed(2)}`, 'Total']}
             contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 13 }}
             cursor={{ fill: '#f3f4f6' }}
           />
