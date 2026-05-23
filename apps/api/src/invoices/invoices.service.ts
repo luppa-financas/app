@@ -10,6 +10,7 @@ import { StorageService } from '../storage/storage.service';
 import { INVOICES_BUCKET } from '../storage/storage.constants';
 import {
   InvoicesRepository,
+  InvoiceWithDebits,
   InvoiceWithTransactions,
 } from './invoices.repository';
 import { InvoiceCreatedEvent } from './events/invoice-created.event';
@@ -82,8 +83,8 @@ export class InvoicesService {
     return { invoiceId: invoice.id };
   }
 
-  async findAll(userId: string): Promise<Invoice[]> {
-    return this.invoicesRepository.findAllByUserId(userId);
+  async findAll(userId: string): Promise<InvoiceWithDebits[]> {
+    return this.invoicesRepository.findAllByUserIdWithDebits(userId);
   }
 
   async findById(id: string, userId: string): Promise<InvoiceWithTransactions> {

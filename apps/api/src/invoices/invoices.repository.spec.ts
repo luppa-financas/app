@@ -81,19 +81,28 @@ describe('InvoicesRepository', () => {
     });
   });
 
-  describe('findAllByUserId', () => {
-    it('should return invoices ordered by createdAt desc for the given userId', async () => {
+  describe('findAllByUserIdWithDebits', () => {
+    it('should query invoices including only DEBIT transactions', async () => {
       const invoices = [
-        { id: 'inv-2', userId: 'user-1', createdAt: new Date('2026-05-10') },
-        { id: 'inv-1', userId: 'user-1', createdAt: new Date('2026-05-01') },
+        {
+          id: 'inv-1',
+          userId: 'user-1',
+          transactions: [{ amount: '150.00' }],
+        },
       ];
       mockPrisma.invoice.findMany.mockResolvedValue(invoices);
 
-      const result = await repository.findAllByUserId('user-1');
+      const result = await repository.findAllByUserIdWithDebits('user-1');
 
       expect(mockPrisma.invoice.findMany).toHaveBeenCalledWith({
         where: { userId: 'user-1' },
         orderBy: { createdAt: 'desc' },
+        include: {
+          transactions: {
+            where: { type: 'DEBIT' },
+            select: { amount: true },
+          },
+        },
       });
       expect(result).toBe(invoices);
     });

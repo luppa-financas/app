@@ -19,7 +19,7 @@ const mockStorageService = { upload: jest.fn(), delete: jest.fn() };
 const mockInvoicesRepository = {
   create: jest.fn(),
   findById: jest.fn(),
-  findAllByUserId: jest.fn(),
+  findAllByUserIdWithDebits: jest.fn(),
   findByIdWithTransactions: jest.fn(),
   deleteById: jest.fn(),
 };
@@ -203,15 +203,17 @@ describe('InvoicesService', () => {
       service = await createService();
     });
 
-    it('should return invoices for the given userId', async () => {
-      const invoices = [{ id: 'inv-1', userId: 'user-1' }];
-      mockInvoicesRepository.findAllByUserId.mockResolvedValue(invoices);
+    it('should return invoices with debit totals for the given userId', async () => {
+      const invoices = [
+        { id: 'inv-1', userId: 'user-1', transactions: [{ amount: '150.00' }] },
+      ];
+      mockInvoicesRepository.findAllByUserIdWithDebits.mockResolvedValue(invoices);
 
       const result = await service.findAll('user-1');
 
-      expect(mockInvoicesRepository.findAllByUserId).toHaveBeenCalledWith(
-        'user-1',
-      );
+      expect(
+        mockInvoicesRepository.findAllByUserIdWithDebits,
+      ).toHaveBeenCalledWith('user-1');
       expect(result).toBe(invoices);
     });
   });

@@ -77,6 +77,7 @@ describe('InvoicesController', () => {
           filename: 'fatura.pdf',
           status: 'DONE',
           billingMonth: new Date('2025-09-01'),
+          transactions: [],
         },
       ];
       mockInvoicesService.findAll.mockResolvedValue(invoices);
@@ -84,7 +85,7 @@ describe('InvoicesController', () => {
       const result = await controller.findAll('user-1');
 
       expect(mockInvoicesService.findAll).toHaveBeenCalledWith('user-1');
-      expect(result).toEqual(invoices);
+      expect(result[0]).toMatchObject({ id: 'inv-1', total: 0 });
     });
   });
 

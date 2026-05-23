@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Decimal } from '@prisma/client/runtime/library';
 import { Invoice, InvoiceStatus, Transaction } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -10,6 +11,7 @@ interface CreateInvoiceData {
 }
 
 export type InvoiceWithTransactions = Invoice & { transactions: Transaction[] };
+export type InvoiceWithDebits = Invoice & { transactions: { amount: Decimal }[] };
 
 @Injectable()
 export class InvoicesRepository {
@@ -23,10 +25,16 @@ export class InvoicesRepository {
     return this.prisma.invoice.findFirst({ where: { id, userId } });
   }
 
-  async findAllByUserId(userId: string): Promise<Invoice[]> {
+  async findAllByUserIdWithDebits(userId: string): Promise<InvoiceWithDebits[]> {
     return this.prisma.invoice.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
+      include: {
+        transactions: {
+          where: { type: 'DEBIT' },
+          select: { amount: true },
+        },
+      },
     });
   }
 
