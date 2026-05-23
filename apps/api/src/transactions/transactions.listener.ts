@@ -28,7 +28,7 @@ export class TransactionsListener {
         INVOICES_BUCKET,
         event.storagePath,
       );
-      const extracted = await this.extractionService.extract(pdf);
+      const extracted = await this.extractionService.extract(pdf, event.billingMonth);
       const classifications =
         await this.categorizationService.classifyMany(extracted);
       const transactions = extracted.map((t, i) => ({
