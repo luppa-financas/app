@@ -41,9 +41,14 @@ const EXTRACTION_TOOL: Anthropic.Tool = {
             },
             amount: {
               type: 'number',
-              description: 'Transaction amount (positive)',
+              description: 'Transaction amount, always positive',
             },
-            type: { type: 'string', enum: ['debit', 'credit'] },
+            type: {
+              type: 'string',
+              enum: ['debit', 'credit'],
+              description:
+                'debit = purchase or expense (money spent). credit = payment made to the card, refund, cashback, or estorno (money returned/credited). Entries like "PAGTO", "PAGAMENTO", "ESTORNO", "CASHBACK" are always credit. Negative amounts shown in red on Brazilian invoices are credit.',
+            },
             category: {
               type: 'string',
               description:
@@ -100,7 +105,13 @@ export class ExtractionService {
             },
             {
               type: 'text',
-              text: 'Extract all transactions from this credit card invoice. Include every line item.',
+              text: `Extract all transactions from this credit card invoice.
+
+Rules:
+- type "debit": purchases and expenses (money spent by the cardholder)
+- type "credit": payments to the card (PAGTO, PAGAMENTO), refunds (ESTORNO), cashback — amounts shown in red or with a minus sign
+- EXCLUDE "SALDO ANTERIOR" entries — they represent a carried-over balance, not a new transaction
+- Every amount must be positive regardless of type`,
             },
           ],
         },
