@@ -17,7 +17,8 @@ SaaS de controle financeiro pessoal. Usuários fazem upload de PDFs de fatura de
 
 ## Pré-requisitos
 
-- Node.js 22+
+- Docker Desktop (com Docker Compose v2)
+- Node.js 22+ (para rodar a web no host)
 - pnpm 10+
 - Acesso aos serviços externos (ver seção de acessos abaixo)
 
@@ -50,25 +51,14 @@ pnpm install
 cp apps/api/.env.example apps/api/.env
 ```
 
-Edite `apps/api/.env` com os valores reais:
+Preencha `apps/api/.env` com os valores reais. As chaves obrigatórias estão comentadas no `.env.example`:
 
-```env
-NODE_ENV=development
-PORT=3333
+- `CLERK_SECRET_KEY` / `CLERK_AUTHORIZED_PARTIES` — dashboard.clerk.com → API Keys (instância dev)
+- `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` — Supabase → Settings → API
+- `ANTHROPIC_API_KEY` — console.anthropic.com → API Keys
+- `STORAGE_PREFIX=local/` — isola seus uploads dos arquivos de prod no mesmo bucket
 
-# Clerk — dashboard.clerk.com → API Keys
-CLERK_SECRET_KEY=sk_test_...
-CLERK_AUTHORIZED_PARTIES=http://localhost:3000
-
-# Supabase — Settings → API
-DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres?pgbouncer=true
-DIRECT_URL=postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
-SUPABASE_URL=https://[ref].supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
-
-# Anthropic — console.anthropic.com → API Keys
-ANTHROPIC_API_KEY=sk-ant-...
-```
+> `DATABASE_URL` e `DIRECT_URL` são sobrescritos pelo `docker-compose.yml` apontando para o postgres local. Você só precisa de valores válidos aqui se for rodar a API fora do Docker (`make dev-api`).
 
 ### Variáveis de ambiente — Web
 
@@ -89,22 +79,20 @@ NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 NEXT_PUBLIC_MAINTENANCE_MODE=false
 ```
 
-### Banco de dados
-
-```bash
-# Aplica as migrations no banco
-make migrate-deploy
-```
-
 ---
 
 ## Rodando localmente
 
-```bash
-# Terminal 1 — API (http://localhost:3333)
-make dev-api
+API + postgres sobem em Docker; web roda no host (Next.js fica mais rápido fora do container).
 
-# Terminal 2 — Web (http://localhost:3000)
+```bash
+# Terminal 1 — sobe postgres + api e segue logs (http://localhost:3333)
+make dev
+
+# Primeira vez, ou sempre que o schema mudar
+make migrate
+
+# Terminal 2 — web (http://localhost:3000)
 make dev-web
 ```
 
@@ -115,19 +103,30 @@ make health
 # { "status": "OK" }
 ```
 
+Guia detalhado em [`CONTRIBUTING.md`](CONTRIBUTING.md) (troubleshooting, criar nova migration, etc).
+
 ---
 
 ## Comandos úteis
 
 ```bash
-make dev-api        # API em modo watch (porta 3333)
-make dev-web        # Web em modo watch (porta 3000)
-make test           # todos os testes (API + web)
-make build          # build de todos os apps
-make health         # health check da API
-make migrate-deploy # aplica migrations (banco já existente)
-make migrate-dev    # cria nova migration (desenvolvimento)
-make studio         # Prisma Studio (GUI do banco)
+# Docker (postgres + api)
+make dev                       # sobe stack e segue logs
+make dev-stop                  # para containers (preserva dados)
+make dev-reset                 # apaga volumes (banco zerado)
+make migrate                   # aplica migrations pendentes
+make migrate-create NAME=foo   # cria nova migration a partir do schema.prisma
+make migrate-reset             # reset completo + re-aplica tudo
+make studio                    # Prisma Studio
+
+# Host
+make dev-web                   # Next.js (3000)
+make dev-api                   # NestJS direto, sem Docker (3333)
+
+# Comuns
+make test                      # suite de testes
+make build                     # build de todos os apps
+make health                    # health check da API
 ```
 
 ---
@@ -160,6 +159,14 @@ docs/
 O bucket `invoices` precisa existir no Supabase Storage com visibilidade **private**.
 
 Para criar: Supabase Dashboard → Storage → New bucket → nome: `invoices` → Private.
+
+Arquivos são isolados por ambiente via `STORAGE_PREFIX`:
+
+```
+invoices/
+├── prod/{userId}/...   ← produção (STORAGE_PREFIX=prod/ no Railway)
+└── local/{userId}/...  ← seu desenvolvimento (STORAGE_PREFIX=local/)
+```
 
 ---
 

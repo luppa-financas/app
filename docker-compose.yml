@@ -1,15 +1,50 @@
 services:
-  api:
-    build:
-      context: ./apps/api
+  postgres:
+    image: postgres:16-alpine
+    container_name: luppa-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
     ports:
-      - "${PORT:-3333}:${PORT:-3333}"
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    container_name: luppa-api
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile.dev
+    restart: unless-stopped
+    ports:
+      - "3333:3333"
     env_file:
       - ./apps/api/.env
     environment:
-      - NODE_ENV=development
-    develop:
-      watch:
-        - action: sync+restart
-          path: ./apps/api/src
-          target: /app/src
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/luppa_local?schema=public
+      DIRECT_URL: postgresql://postgres:postgres@postgres:5432/luppa_local?schema=public
+      STORAGE_PREFIX: local/
+      NODE_ENV: development
+      PORT: 3333
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./apps/api:/workspace/apps/api
+      - ./packages/types:/workspace/packages/types
+      - api_node_modules:/workspace/apps/api/node_modules
+      - root_node_modules:/workspace/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  api_node_modules:
+  root_node_modules:
