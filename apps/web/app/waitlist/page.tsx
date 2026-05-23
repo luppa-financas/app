@@ -1,3 +1,5 @@
+import { SignOutButton } from './sign-out-button';
+
 export default function WaitlistPage() {
   return (
     <main className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
@@ -6,6 +8,7 @@ export default function WaitlistPage() {
         <p className="text-gray-600">
           O Luppa está em acesso antecipado. Assim que sua conta for ativada, você receberá acesso automático.
         </p>
+        <SignOutButton />
       </div>
     </main>
   );

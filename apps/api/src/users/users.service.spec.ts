@@ -1,10 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UsersRepository } from './users.repository';
 
 const mockUsersRepository = {
-  create: jest.fn(),
+  upsert: jest.fn(),
   delete: jest.fn(),
   findById: jest.fn(),
 };
@@ -24,10 +23,16 @@ describe('UsersService', () => {
     jest.resetAllMocks();
   });
 
-  it('should delegate handleUserCreated to repository.create', async () => {
+  it('should delegate handleUserCreated to repository.upsert', async () => {
+    mockUsersRepository.upsert.mockResolvedValue({
+      id: 'user_1',
+      roles: [],
+      createdAt: new Date(),
+    });
+
     await service.handleUserCreated('user_1');
 
-    expect(mockUsersRepository.create).toHaveBeenCalledWith('user_1');
+    expect(mockUsersRepository.upsert).toHaveBeenCalledWith('user_1');
   });
 
   it('should delegate handleUserDeleted to repository.delete', async () => {
@@ -37,20 +42,24 @@ describe('UsersService', () => {
   });
 
   describe('getMe', () => {
-    it('should return the user when found', async () => {
+    it('should return existing user', async () => {
       const user = { id: 'user_1', roles: ['mvp'], createdAt: new Date() };
-      mockUsersRepository.findById.mockResolvedValue(user);
+      mockUsersRepository.upsert.mockResolvedValue(user);
 
       const result = await service.getMe('user_1');
 
-      expect(mockUsersRepository.findById).toHaveBeenCalledWith('user_1');
+      expect(mockUsersRepository.upsert).toHaveBeenCalledWith('user_1');
       expect(result).toBe(user);
     });
 
-    it('should throw NotFoundException when user is not found', async () => {
-      mockUsersRepository.findById.mockResolvedValue(null);
+    it('should create and return user when not found', async () => {
+      const user = { id: 'user_1', roles: [], createdAt: new Date() };
+      mockUsersRepository.upsert.mockResolvedValue(user);
 
-      await expect(service.getMe('user_1')).rejects.toThrow(NotFoundException);
+      const result = await service.getMe('user_1');
+
+      expect(mockUsersRepository.upsert).toHaveBeenCalledWith('user_1');
+      expect(result).toEqual(user);
     });
   });
 });

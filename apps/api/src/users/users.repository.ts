@@ -6,8 +6,12 @@ import { PrismaService } from '../prisma/prisma.service';
 export class UsersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(id: string): Promise<void> {
-    await this.prisma.user.create({ data: { id } });
+  async upsert(id: string): Promise<User> {
+    return this.prisma.user.upsert({
+      where: { id },
+      update: {},
+      create: { id },
+    });
   }
 
   async delete(id: string): Promise<void> {
