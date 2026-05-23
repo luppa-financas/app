@@ -5,7 +5,6 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Invoice } from '@prisma/client';
 import { StorageService } from '../storage/storage.service';
 import { INVOICES_BUCKET } from '../storage/storage.constants';
 import {

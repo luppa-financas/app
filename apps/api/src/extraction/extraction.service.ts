@@ -110,7 +110,8 @@ export class ExtractionService {
 Rules:
 - type "debit": purchases and expenses (money spent by the cardholder)
 - type "credit": payments to the card (PAGTO, PAGAMENTO), refunds (ESTORNO), cashback — amounts shown in red or with a minus sign
-- EXCLUDE "SALDO ANTERIOR" entries — they represent a carried-over balance, not a new transaction
+- EXCLUDE completely any "SALDO ANTERIOR" entry — it is a carried-over balance from a previous period, not a transaction
+- Do not extract the same transaction twice — each line item must appear exactly once
 - Every amount must be positive regardless of type`,
             },
           ],
