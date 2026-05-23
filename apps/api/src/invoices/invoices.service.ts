@@ -76,7 +76,7 @@ export class InvoicesService {
 
     this.eventEmitter.emit(
       'invoice.created',
-      new InvoiceCreatedEvent(invoice.id, userId, storagePath, billingMonth),
+      new InvoiceCreatedEvent(invoice.id, userId, storagePath),
     );
 
     return { invoiceId: invoice.id };

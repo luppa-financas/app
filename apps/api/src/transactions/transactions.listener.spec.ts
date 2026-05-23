@@ -15,12 +15,10 @@ const mockStorageService = { download: jest.fn() };
 const mockExtractionService = { extract: jest.fn() };
 const mockCategorizationService = { classifyMany: jest.fn() };
 
-const billingMonth = new Date('2026-04-01');
 const event = new InvoiceCreatedEvent(
   'inv-1',
   'user-1',
   'dev/user-1/fatura.pdf',
-  billingMonth,
 );
 const pdfBuffer = Buffer.from('pdf');
 const extracted: ExtractedTransaction[] = [
@@ -74,7 +72,7 @@ describe('TransactionsListener', () => {
       'invoices',
       event.storagePath,
     );
-    expect(mockExtractionService.extract).toHaveBeenCalledWith(pdfBuffer, billingMonth);
+    expect(mockExtractionService.extract).toHaveBeenCalledWith(pdfBuffer);
     expect(mockCategorizationService.classifyMany).toHaveBeenCalledWith(
       extracted,
     );

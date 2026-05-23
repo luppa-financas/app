@@ -41,14 +41,9 @@ const EXTRACTION_TOOL: Anthropic.Tool = {
             },
             amount: {
               type: 'number',
-              description: 'Transaction amount, always positive',
+              description: 'Transaction amount (positive)',
             },
-            type: {
-              type: 'string',
-              enum: ['debit', 'credit'],
-              description:
-                'debit = purchase or expense (money spent). credit = payment made to the card, refund, cashback, or estorno (money returned/credited). Entries like "PAGTO", "PAGAMENTO", "ESTORNO", "CASHBACK" are always credit. Negative amounts shown in red on Brazilian invoices are credit.',
-            },
+            type: { type: 'string', enum: ['debit', 'credit'] },
             category: {
               type: 'string',
               description:
@@ -85,17 +80,7 @@ const EXTRACTION_TOOL: Anthropic.Tool = {
 export class ExtractionService {
   constructor(@Inject(ANTHROPIC_CLIENT) private readonly client: Anthropic) {}
 
-  async extract(pdf: Buffer, billingMonth: Date): Promise<ExtractedTransaction[]> {
-    const cutoffDate = new Date(billingMonth);
-    cutoffDate.setMonth(cutoffDate.getMonth() + 2);
-    const cutoffStr = cutoffDate.toISOString().split('T')[0];
-
-    const billingMonthStr = billingMonth.toLocaleString('pt-BR', {
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'UTC',
-    });
-
+  async extract(pdf: Buffer): Promise<ExtractedTransaction[]> {
     const response = await this.client.messages.create({
       model: EXTRACTION_MODEL,
       max_tokens: 16000,
@@ -115,18 +100,7 @@ export class ExtractionService {
             },
             {
               type: 'text',
-              text: `Extract all transactions from this credit card invoice.
-
-Billing period: ${billingMonthStr}
-
-Rules:
-- type "debit": purchases and expenses (money spent by the cardholder)
-- type "credit": payments to the card (PAGTO, PAGAMENTO), refunds (ESTORNO), cashback, Uber credits/recharges, any entry with "CREDIT" in the name — amounts shown in red or with a minus sign
-- EXCLUDE completely any "SALDO ANTERIOR" entry — it is a carried-over balance from a previous period, not a transaction
-- EXCLUDE completely any entries from future-installment sections ("Compras parceladas - próximas faturas", "Próximas faturas", "Parcelas futuras", etc.) — these list charges for upcoming billing periods
-- EXCLUDE any transaction dated ${cutoffStr} or later — that date is more than one billing cycle ahead and indicates a future installment
-- In invoices with multiple cards, the same transaction may appear under each cardholder's section AND in a combined summary. Deduplicate strictly: two entries with the exact same date + merchant name + amount are the same transaction — keep only one
-- Every amount must be positive regardless of type`,
+              text: 'Extract all transactions from this credit card invoice. Include every line item.',
             },
           ],
         },

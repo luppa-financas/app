@@ -3,6 +3,5 @@ export class InvoiceCreatedEvent {
     public readonly invoiceId: string,
     public readonly userId: string,
     public readonly storagePath: string,
-    public readonly billingMonth: Date,
   ) {}
 }

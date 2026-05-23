@@ -5,7 +5,6 @@ import { ANTHROPIC_CLIENT } from './extraction.constants';
 const mockAnthropicClient = { messages: { create: jest.fn() } };
 
 const pdf = Buffer.from('fake-pdf');
-const billingMonth = new Date('2025-04-01');
 
 function makeToolUseResponse(invoiceTotal: number, transactions: object[]) {
   return {
@@ -60,7 +59,7 @@ describe('ExtractionService', () => {
       ]),
     );
 
-    const result = await service.extract(pdf, billingMonth);
+    const result = await service.extract(pdf);
 
     expect(result).toHaveLength(2);
     expect(result[0]).toEqual({
@@ -82,7 +81,7 @@ describe('ExtractionService', () => {
       ],
     });
 
-    await expect(service.extract(pdf, billingMonth)).rejects.toThrow(
+    await expect(service.extract(pdf)).rejects.toThrow(
       'Unexpected response format from Claude',
     );
   });
@@ -92,6 +91,6 @@ describe('ExtractionService', () => {
       new Error('API error'),
     );
 
-    await expect(service.extract(pdf, billingMonth)).rejects.toThrow('API error');
+    await expect(service.extract(pdf)).rejects.toThrow('API error');
   });
 });
