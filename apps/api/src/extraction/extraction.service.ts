@@ -109,9 +109,10 @@ export class ExtractionService {
 
 Rules:
 - type "debit": purchases and expenses (money spent by the cardholder)
-- type "credit": payments to the card (PAGTO, PAGAMENTO), refunds (ESTORNO), cashback — amounts shown in red or with a minus sign
+- type "credit": payments to the card (PAGTO, PAGAMENTO), refunds (ESTORNO), cashback, Uber credits/recharges, any entry with "CREDIT" in the name — amounts shown in red or with a minus sign
 - EXCLUDE completely any "SALDO ANTERIOR" entry — it is a carried-over balance from a previous period, not a transaction
-- Do not extract the same transaction twice — each line item must appear exactly once
+- EXCLUDE completely any entries under sections labeled "Compras parceladas - próximas faturas", "Próximas faturas", or similar future-installment sections — only extract transactions that belong to the current billing period
+- Do not extract the same transaction twice — each line item must appear exactly once, even if the invoice lists it under multiple card numbers or sections
 - Every amount must be positive regardless of type`,
             },
           ],
