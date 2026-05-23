@@ -20,7 +20,7 @@ import { InvoiceResponseDto } from './dto/invoice-response.dto';
 import { InvoiceDetailResponseDto } from './dto/invoice-detail-response.dto';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 24 * 1024 * 1024; // 24MB — ~32MB base64, alinhado com o limite de request da Anthropic
 
 @Controller('invoices')
 export class InvoicesController {

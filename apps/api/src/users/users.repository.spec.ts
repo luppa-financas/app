@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 const mockPrisma = {
   user: {
-    create: jest.fn(),
+    upsert: jest.fn(),
     delete: jest.fn(),
     findUnique: jest.fn(),
   },
@@ -25,16 +25,33 @@ describe('UsersRepository', () => {
     jest.resetAllMocks();
   });
 
-  it('should create a user with the given id', async () => {
-    mockPrisma.user.create.mockResolvedValue({
-      id: 'user_1',
-      createdAt: new Date(),
+  describe('upsert', () => {
+    it('should create user when not found', async () => {
+      const user = { id: 'user_1', roles: [], createdAt: new Date() };
+      mockPrisma.user.upsert.mockResolvedValue(user);
+
+      const result = await repository.upsert('user_1');
+
+      expect(mockPrisma.user.upsert).toHaveBeenCalledWith({
+        where: { id: 'user_1' },
+        update: {},
+        create: { id: 'user_1' },
+      });
+      expect(result).toBe(user);
     });
 
-    await repository.create('user_1');
+    it('should return existing user without modifying it', async () => {
+      const user = { id: 'user_1', roles: ['mvp'], createdAt: new Date() };
+      mockPrisma.user.upsert.mockResolvedValue(user);
 
-    expect(mockPrisma.user.create).toHaveBeenCalledWith({
-      data: { id: 'user_1' },
+      const result = await repository.upsert('user_1');
+
+      expect(mockPrisma.user.upsert).toHaveBeenCalledWith({
+        where: { id: 'user_1' },
+        update: {},
+        create: { id: 'user_1' },
+      });
+      expect(result).toBe(user);
     });
   });
 
