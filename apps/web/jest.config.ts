@@ -9,6 +9,7 @@ const config: Config = {
     '^@/(.*)$': '<rootDir>/$1',
   },
   testRegex: '.*\\.spec\\.tsx?$',
+  setupFilesAfterEnv: ['@testing-library/jest-dom'],
 };
 
 export default config;

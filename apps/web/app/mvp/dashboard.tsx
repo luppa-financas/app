@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { detectEncryptedPdf } from '../../lib/pdf-crypto';
 import { MonthPicker } from '../../components/MonthPicker';
 import { Cell, Pie, PieChart, Tooltip } from 'recharts';
+import { InvoiceBarChart } from './invoice-bar-chart';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
@@ -34,6 +35,7 @@ type Invoice = {
   id: string;
   status: InvoiceStatus;
   billingMonth: string;
+  total: number;
 };
 
 type Transaction = {
@@ -428,6 +430,8 @@ export default function Dashboard() {
 
         {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
       </section>
+
+      <InvoiceBarChart invoices={invoices} />
 
       {/* Invoice selector */}
       {invoices.length > 0 && (

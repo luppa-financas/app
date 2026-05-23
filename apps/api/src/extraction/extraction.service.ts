@@ -100,7 +100,7 @@ export class ExtractionService {
             },
             {
               type: 'text',
-              text: 'Extract all transactions from this credit card invoice. Include every line item.',
+              text: 'Extract all transactions from this credit card invoice. Include every line item. Do NOT include any entry labeled "SALDO ANTERIOR" — it is a carried-over balance from a previous period, not a transaction.',
             },
           ],
         },
