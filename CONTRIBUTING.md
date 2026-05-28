@@ -102,6 +102,22 @@ make dev-reset && make dev
 
 A web roda no host (porta 3000) e bate na api em `http://localhost:3333`. Se preferir rodar a web em container futuramente, use `host.docker.internal` ou adicione um service no compose.
 
+### Login redireciona para `/waitlist` em vez do dashboard
+
+O Clerk cria o usuário sem roles no primeiro login em dev local (webhooks não funcionam em localhost). Para liberar o acesso:
+
+```bash
+make studio   # abre Prisma Studio em localhost:5555
+```
+
+Na tabela **User**, edite o registro com o seu e-mail e defina o campo `roles` como `["mvp"]`. Salve e recarregue o app.
+
+Só precisa fazer isso uma vez por usuário novo em dev local.
+
+## Primeiro upload
+
+Após o setup, siga [`docs/first-upload.md`](docs/first-upload.md) para validar que tudo está funcionando ponta-a-ponta.
+
 ## Dúvidas
 
 Abra uma issue ou pergunte no grupo do projeto.
