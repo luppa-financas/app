@@ -63,7 +63,12 @@ describe('TransactionsListener', () => {
 
   it('should download PDF, extract transactions, classify them, save them and mark invoice as DONE', async () => {
     mockStorageService.download.mockResolvedValue(pdfBuffer);
-    mockExtractionService.extract.mockResolvedValue(extracted);
+    mockExtractionService.extract.mockResolvedValue({
+      invoiceTotal: 45.9,
+      transactions: extracted,
+      payments: [],
+      futureInstallments: [],
+    });
     mockCategorizationService.classifyMany.mockResolvedValue([classified]);
 
     await listener.handleInvoiceCreated(event);

@@ -207,7 +207,9 @@ describe('InvoicesService', () => {
       const invoices = [
         { id: 'inv-1', userId: 'user-1', transactions: [{ amount: '150.00' }] },
       ];
-      mockInvoicesRepository.findAllByUserIdWithDebits.mockResolvedValue(invoices);
+      mockInvoicesRepository.findAllByUserIdWithDebits.mockResolvedValue(
+        invoices,
+      );
 
       const result = await service.findAll('user-1');
 

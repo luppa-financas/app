@@ -7,3 +7,17 @@ export interface ExtractedTransaction {
   subcategory: string | null;
   confidence: number;
 }
+
+export interface ExtractedPayment {
+  date: string;
+  description: string;
+  amount: number;
+  kind: 'invoice_payment' | 'previous_balance';
+}
+
+export interface ExtractedFutureInstallment {
+  date: string;
+  description: string;
+  amount: number;
+  installmentInfo: string | null;
+}
