@@ -105,6 +105,8 @@ make health
 
 Guia detalhado em [`CONTRIBUTING.md`](CONTRIBUTING.md) (troubleshooting, criar nova migration, etc).
 
+Primeira vez rodando? Siga [`docs/first-upload.md`](docs/first-upload.md) para validar o ambiente ponta-a-ponta.
+
 ---
 
 ## Comandos úteis
