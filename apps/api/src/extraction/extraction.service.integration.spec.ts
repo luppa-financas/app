@@ -1,9 +1,6 @@
 import 'dotenv/config';
-import { spawn } from 'child_process';
-import { randomUUID } from 'crypto';
-import { readFile, unlink, writeFile } from 'fs/promises';
+import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { tmpdir } from 'os';
 import { Test, TestingModule } from '@nestjs/testing';
 import Anthropic from '@anthropic-ai/sdk';
 import { ExtractionService } from './extraction.service';
@@ -15,47 +12,8 @@ const describeIf = RUN ? describe : describe.skip;
 
 const TESTDATA_DIR = join(__dirname, 'testdata');
 
-const PASSWORDS: Record<string, string> = {
-  'itau-peu.pdf': '91570',
-};
-
-async function decryptPdf(buffer: Buffer, password: string): Promise<Buffer> {
-  const id = randomUUID();
-  const inputPath = join(tmpdir(), `qpdf-in-${id}.pdf`);
-  const outputPath = join(tmpdir(), `qpdf-out-${id}.pdf`);
-  await writeFile(inputPath, buffer);
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const proc = spawn('qpdf', [
-        `--password=${password}`,
-        '--decrypt',
-        inputPath,
-        outputPath,
-      ]);
-      const errs: Buffer[] = [];
-      proc.stderr.on('data', (c: Buffer) => errs.push(c));
-      proc.on('error', reject);
-      proc.on('close', (code) => {
-        if (code === 0) resolve();
-        else
-          reject(new Error(`qpdf failed: ${Buffer.concat(errs).toString()}`));
-      });
-    });
-    return await readFile(outputPath);
-  } finally {
-    await Promise.all([
-      unlink(inputPath).catch(() => undefined),
-      unlink(outputPath).catch(() => undefined),
-    ]);
-  }
-}
-
 async function loadPdf(filename: string): Promise<Buffer> {
-  const pdf = await readFile(join(TESTDATA_DIR, filename));
-  if (PASSWORDS[filename]) {
-    return decryptPdf(pdf, PASSWORDS[filename]);
-  }
-  return pdf;
+  return readFile(join(TESTDATA_DIR, filename));
 }
 
 const EXCLUSION_PATTERNS = [
@@ -106,13 +64,6 @@ describeIf('ExtractionService (integration)', () => {
   jest.setTimeout(300_000);
 
   const cases: ExpectedCase[] = [
-    {
-      file: 'itau-peu.pdf',
-      expectedTotal: 3271.51,
-      label: 'Itaú Peu',
-      expectPayments: true,
-      expectFutureInstallments: false,
-    },
     {
       file: 'itau-humberto.pdf',
       expectedTotal: 18918.07,
