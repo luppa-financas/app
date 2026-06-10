@@ -11,7 +11,9 @@ interface CreateInvoiceData {
 }
 
 export type InvoiceWithTransactions = Invoice & { transactions: Transaction[] };
-export type InvoiceWithDebits = Invoice & { transactions: { amount: Decimal }[] };
+export type InvoiceWithDebits = Invoice & {
+  transactions: { amount: Decimal }[];
+};
 
 @Injectable()
 export class InvoicesRepository {
@@ -25,7 +27,9 @@ export class InvoicesRepository {
     return this.prisma.invoice.findFirst({ where: { id, userId } });
   }
 
-  async findAllByUserIdWithDebits(userId: string): Promise<InvoiceWithDebits[]> {
+  async findAllByUserIdWithDebits(
+    userId: string,
+  ): Promise<InvoiceWithDebits[]> {
     return this.prisma.invoice.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
