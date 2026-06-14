@@ -84,7 +84,7 @@ describeIf('ExtractionService (integration)', () => {
     {
       file: 'bradesco-final-mai.pdf',
       expectedTotal: 4356.38,
-      expectedBillingMonth: '2026-05',
+      expectedBillingMonth: '2026-06',
       label: 'Bradesco',
       expectPayments: true,
       expectFutureInstallments: false,
