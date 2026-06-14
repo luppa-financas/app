@@ -7,7 +7,6 @@ interface CreateInvoiceData {
   userId: string;
   filename: string;
   storagePath: string;
-  billingMonth: Date;
 }
 
 export type InvoiceWithTransactions = Invoice & { transactions: Transaction[] };
@@ -52,8 +51,15 @@ export class InvoicesRepository {
     });
   }
 
-  async updateStatus(id: string, status: InvoiceStatus): Promise<void> {
-    await this.prisma.invoice.update({ where: { id }, data: { status } });
+  async updateStatus(
+    id: string,
+    status: InvoiceStatus,
+    billingMonth?: Date,
+  ): Promise<void> {
+    await this.prisma.invoice.update({
+      where: { id },
+      data: billingMonth ? { status, billingMonth } : { status },
+    });
   }
 
   async deleteById(id: string, userId: string): Promise<void> {

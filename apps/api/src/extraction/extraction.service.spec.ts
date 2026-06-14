@@ -13,6 +13,7 @@ function makeToolUseResponse(
   transactions: object[],
   payments: object[] = [],
   futureInstallments: object[] = [],
+  billingMonth: string = '2025-04',
 ) {
   return {
     content: [
@@ -23,6 +24,7 @@ function makeToolUseResponse(
           transactions,
           payments,
           futureInstallments,
+          billingMonth,
         },
       },
     ],
@@ -384,4 +386,52 @@ describe('ExtractionService', () => {
 
     await expect(service.extract(pdf)).rejects.toThrow('API error');
   });
+
+  it('should return billingMonth alongside the other buckets', async () => {
+    mockAnthropicClient.messages.create.mockResolvedValue(
+      makeToolUseResponse(0, [], [], [], '2026-05'),
+    );
+
+    const result = await service.extract(pdf);
+
+    expect(result.billingMonth).toBe('2026-05');
+  });
+
+  it('should throw when Claude does not return billingMonth', async () => {
+    mockAnthropicClient.messages.create.mockResolvedValue({
+      content: [
+        {
+          type: 'tool_use',
+          input: {
+            invoiceTotal: 0,
+            transactions: [],
+            payments: [],
+            futureInstallments: [],
+          },
+        },
+      ],
+    });
+
+    await expect(service.extract(pdf)).rejects.toThrow(/billingMonth/i);
+  });
+
+  it.each([
+    '05/2026',
+    '2026/05',
+    '2026-13',
+    '2026-00',
+    '26-05',
+    '2026-05-15',
+    'maio 2026',
+    '',
+  ])(
+    'should throw when Claude returns invalid billingMonth format: %p',
+    async (badFormat) => {
+      mockAnthropicClient.messages.create.mockResolvedValue(
+        makeToolUseResponse(0, [], [], [], badFormat),
+      );
+
+      await expect(service.extract(pdf)).rejects.toThrow(/billingMonth/i);
+    },
+  );
 });

@@ -9,6 +9,7 @@ import {
   ExtractedFutureInstallment,
   ExtractedPayment,
   ExtractedTransaction,
+  ExtractionResult,
 } from './extraction.types';
 import { BankDetectorService } from './bank-detector.service';
 
@@ -38,10 +39,13 @@ interface ClaudeFutureInstallment {
 
 interface ClaudeExtractionResult {
   invoiceTotal: number;
+  billingMonth: string;
   transactions: ClaudeTransaction[];
   payments?: ClaudePayment[];
   futureInstallments?: ClaudeFutureInstallment[];
 }
+
+const BILLING_MONTH_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 const EXTRACTION_TOOL: Anthropic.Tool = {
   name: 'extract_transactions',
@@ -53,6 +57,11 @@ const EXTRACTION_TOOL: Anthropic.Tool = {
         type: 'number',
         description:
           'Total of purchases in the current billing period (NOT "Total a pagar" or net amount due). For Itaú: "Total dos lançamentos atuais". For Nubank: "Total de compras de todos os cartões" plus "IOF de compras internacionais". For Bradesco: sum of all purchases shown.',
+      },
+      billingMonth: {
+        type: 'string',
+        description:
+          'Billing month of this invoice in format YYYY-MM (zero-padded), taken from the invoice due date / vencimento. Examples: "2026-05" for an invoice due in May 2026. Read from the prominent due-date field on the invoice header (Itaú "Vencimento", Nubank "Vencimento da fatura", Bradesco "Data do vencimento"). NEVER infer from transaction dates.',
       },
       transactions: {
         type: 'array',
@@ -149,6 +158,7 @@ const EXTRACTION_TOOL: Anthropic.Tool = {
     },
     required: [
       'invoiceTotal',
+      'billingMonth',
       'transactions',
       'payments',
       'futureInstallments',
@@ -184,6 +194,13 @@ Return invoiceTotal as the SUM OF PURCHASES IN THE CURRENT PERIOD.
 - Itaú: read "Total dos lançamentos atuais".
 - Nubank: "Total de compras de todos os cartões" + "IOF de compras internacionais". DO NOT use "Total a pagar" — it is net of payments.
 - Bradesco: read "Total para: <name>" at the bottom of the statement, when present.
+
+BILLING MONTH
+Return billingMonth as the month of the invoice's DUE DATE (vencimento), in format YYYY-MM (zero-padded month).
+- Itaú: "Vencimento" on the header (e.g. "05/05/2026" → "2026-05").
+- Nubank: "Vencimento da fatura" or "Vence em".
+- Bradesco: "Data do vencimento".
+NEVER derive billingMonth from transaction dates. Only use the explicit due-date field.
 
 AMOUNTS
 - amount must always be POSITIVE in all three arrays.
@@ -254,12 +271,7 @@ export class ExtractionService {
     private readonly bankDetector: BankDetectorService,
   ) {}
 
-  async extract(pdf: Buffer): Promise<{
-    invoiceTotal: number;
-    transactions: ExtractedTransaction[];
-    payments: ExtractedPayment[];
-    futureInstallments: ExtractedFutureInstallment[];
-  }> {
+  async extract(pdf: Buffer): Promise<ExtractionResult> {
     const bank = await this.bankDetector.detect(pdf);
     const model =
       bank === 'itau' ? EXTRACTION_MODEL_COMPLEX : EXTRACTION_MODEL_DEFAULT;
@@ -299,6 +311,17 @@ export class ExtractionService {
     if (!Array.isArray(result.transactions)) {
       throw new Error(
         `Claude returned malformed extraction result: ${JSON.stringify(result)}`,
+      );
+    }
+
+    if (
+      typeof result.billingMonth !== 'string' ||
+      !BILLING_MONTH_REGEX.test(result.billingMonth)
+    ) {
+      throw new Error(
+        `Claude returned invalid billingMonth (expected "YYYY-MM"): ${JSON.stringify(
+          result.billingMonth,
+        )}`,
       );
     }
 
@@ -367,6 +390,7 @@ export class ExtractionService {
 
     return {
       invoiceTotal: result.invoiceTotal,
+      billingMonth: result.billingMonth,
       transactions,
       payments,
       futureInstallments,

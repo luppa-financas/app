@@ -39,15 +39,10 @@ export class InvoicesController {
       }),
     )
     file: Express.Multer.File,
-    @Body() body: CreateInvoiceDto,
+    @Body() _body: CreateInvoiceDto,
     @Body('password') password?: string,
   ): Promise<{ invoiceId: string }> {
-    return this.invoicesService.create(
-      userId,
-      file,
-      new Date(body.billingMonth),
-      password,
-    );
+    return this.invoicesService.create(userId, file, password);
   }
 
   @Get()

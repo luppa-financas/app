@@ -33,7 +33,7 @@ export class InvoiceDetailResponseDto {
   id: string;
   filename: string;
   status: string;
-  billingMonth: Date;
+  billingMonth: Date | null;
   transactions: TransactionDto[];
 
   static from(invoice: InvoiceWithTransactions): InvoiceDetailResponseDto {

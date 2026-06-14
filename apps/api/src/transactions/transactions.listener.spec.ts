@@ -61,13 +61,14 @@ describe('TransactionsListener', () => {
     jest.resetAllMocks();
   });
 
-  it('should download PDF, extract transactions, classify them, save them and mark invoice as DONE', async () => {
+  it('should download PDF, extract transactions, classify them, save them and mark invoice as DONE with billingMonth', async () => {
     mockStorageService.download.mockResolvedValue(pdfBuffer);
     mockExtractionService.extract.mockResolvedValue({
       invoiceTotal: 45.9,
       transactions: extracted,
       payments: [],
       futureInstallments: [],
+      billingMonth: '2026-04',
     });
     mockCategorizationService.classifyMany.mockResolvedValue([classified]);
 
@@ -88,10 +89,11 @@ describe('TransactionsListener', () => {
     expect(mockInvoicesRepository.updateStatus).toHaveBeenCalledWith(
       'inv-1',
       InvoiceStatus.DONE,
+      new Date('2026-04-01T00:00:00.000Z'),
     );
   });
 
-  it('should mark invoice as FAILED and not save transactions when extraction throws', async () => {
+  it('should mark invoice as FAILED (without billingMonth) when extraction throws', async () => {
     mockStorageService.download.mockResolvedValue(pdfBuffer);
     mockExtractionService.extract.mockRejectedValue(
       new Error('sum check failed'),

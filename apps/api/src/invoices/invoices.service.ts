@@ -36,7 +36,6 @@ export class InvoicesService {
   async create(
     userId: string,
     file: Express.Multer.File,
-    billingMonth: Date,
     password?: string,
   ): Promise<{ invoiceId: string }> {
     let buffer = file.buffer;
@@ -71,7 +70,6 @@ export class InvoicesService {
       userId,
       filename: file.originalname,
       storagePath,
-      billingMonth,
     });
 
     this.eventEmitter.emit(
