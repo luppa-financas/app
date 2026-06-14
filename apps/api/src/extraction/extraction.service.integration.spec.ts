@@ -79,8 +79,8 @@ describeIf('ExtractionService (integration)', () => {
       expectFutureInstallments: false,
     },
     {
-      file: 'Bradesco_ExtratoFaturaAberta-23-05-2026-compactado.pdf',
-      expectedTotal: 3992.33,
+      file: 'bradesco-final-mai.pdf',
+      expectedTotal: 4356.38,
       label: 'Bradesco',
       expectPayments: true,
       expectFutureInstallments: false,
