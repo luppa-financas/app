@@ -21,3 +21,11 @@ export interface ExtractedFutureInstallment {
   amount: number;
   installmentInfo: string | null;
 }
+
+export interface ExtractionResult {
+  invoiceTotal: number;
+  billingMonth: string;
+  transactions: ExtractedTransaction[];
+  payments: ExtractedPayment[];
+  futureInstallments: ExtractedFutureInstallment[];
+}

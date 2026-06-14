@@ -7,6 +7,7 @@ const mockPrisma = {
     create: jest.fn(),
     findFirst: jest.fn(),
     findMany: jest.fn(),
+    update: jest.fn(),
     delete: jest.fn(),
   },
 };
@@ -28,23 +29,22 @@ describe('InvoicesRepository', () => {
   });
 
   describe('create', () => {
-    it('should create an invoice with PENDING status and return it', async () => {
+    it('should create an invoice with PENDING status (billingMonth filled later by the listener) and return it', async () => {
       const invoice = {
         id: 'inv-1',
         userId: 'user-1',
         filename: 'fatura.pdf',
         storagePath: 'invoices/user-1/fatura.pdf',
         status: 'PENDING',
+        billingMonth: null,
         createdAt: new Date(),
       };
       mockPrisma.invoice.create.mockResolvedValue(invoice);
 
-      const billingMonth = new Date('2025-09-01');
       const result = await repository.create({
         userId: 'user-1',
         filename: 'fatura.pdf',
         storagePath: 'invoices/user-1/fatura.pdf',
-        billingMonth,
       });
 
       expect(result).toEqual(invoice);
@@ -53,8 +53,32 @@ describe('InvoicesRepository', () => {
           userId: 'user-1',
           filename: 'fatura.pdf',
           storagePath: 'invoices/user-1/fatura.pdf',
-          billingMonth,
         },
+      });
+    });
+  });
+
+  describe('updateStatus', () => {
+    it('should update only status when billingMonth is not provided', async () => {
+      mockPrisma.invoice.update.mockResolvedValue({});
+
+      await repository.updateStatus('inv-1', 'FAILED');
+
+      expect(mockPrisma.invoice.update).toHaveBeenCalledWith({
+        where: { id: 'inv-1' },
+        data: { status: 'FAILED' },
+      });
+    });
+
+    it('should update both status and billingMonth when both are provided', async () => {
+      mockPrisma.invoice.update.mockResolvedValue({});
+      const billingMonth = new Date('2026-04-01T00:00:00.000Z');
+
+      await repository.updateStatus('inv-1', 'DONE', billingMonth);
+
+      expect(mockPrisma.invoice.update).toHaveBeenCalledWith({
+        where: { id: 'inv-1' },
+        data: { status: 'DONE', billingMonth },
       });
     });
   });

@@ -11,9 +11,7 @@ const mockInvoicesService = {
   delete: jest.fn(),
 };
 
-const billingMonthDto: CreateInvoiceDto = {
-  billingMonth: '2025-09-01T00:00:00.000Z',
-};
+const emptyDto: CreateInvoiceDto = {};
 
 describe('InvoicesController', () => {
   let controller: InvoicesController;
@@ -37,20 +35,29 @@ describe('InvoicesController', () => {
       size: 1024,
     } as Express.Multer.File;
 
-    it('should return invoiceId for a valid PDF', async () => {
+    it('should return invoiceId for a valid PDF without any billingMonth in the body', async () => {
       mockInvoicesService.create.mockResolvedValue({ invoiceId: 'inv-1' });
 
-      const result = await controller.create(
-        'user-1',
-        pdfFile,
-        billingMonthDto,
-      );
+      const result = await controller.create('user-1', pdfFile, emptyDto);
 
       expect(result).toEqual({ invoiceId: 'inv-1' });
       expect(mockInvoicesService.create).toHaveBeenCalledWith(
         'user-1',
         pdfFile,
-        new Date('2025-09-01T00:00:00.000Z'),
+        undefined,
+      );
+    });
+
+    it('should ignore billingMonth if the legacy MVP body still sends it', async () => {
+      mockInvoicesService.create.mockResolvedValue({ invoiceId: 'inv-1' });
+
+      await controller.create('user-1', pdfFile, {
+        billingMonth: '2025-09-01T00:00:00.000Z',
+      });
+
+      expect(mockInvoicesService.create).toHaveBeenCalledWith(
+        'user-1',
+        pdfFile,
         undefined,
       );
     });
@@ -58,12 +65,11 @@ describe('InvoicesController', () => {
     it('should forward password from body to service', async () => {
       mockInvoicesService.create.mockResolvedValue({ invoiceId: 'inv-1' });
 
-      await controller.create('user-1', pdfFile, billingMonthDto, 's3cret');
+      await controller.create('user-1', pdfFile, emptyDto, 's3cret');
 
       expect(mockInvoicesService.create).toHaveBeenCalledWith(
         'user-1',
         pdfFile,
-        new Date('2025-09-01T00:00:00.000Z'),
         's3cret',
       );
     });

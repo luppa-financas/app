@@ -33,4 +33,12 @@ describe('InvoiceDetailResponseDto.from', () => {
     const dto = InvoiceDetailResponseDto.from(base);
     expect(dto.billingMonth).toEqual(new Date('2025-09-01'));
   });
+
+  it('forwards null billingMonth (invoice still PENDING)', () => {
+    const dto = InvoiceDetailResponseDto.from({
+      ...base,
+      billingMonth: null as unknown as Date,
+    });
+    expect(dto.billingMonth).toBeNull();
+  });
 });

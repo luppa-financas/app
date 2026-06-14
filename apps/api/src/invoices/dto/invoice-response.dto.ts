@@ -4,7 +4,7 @@ export class InvoiceResponseDto {
   id: string;
   filename: string;
   status: string;
-  billingMonth: Date;
+  billingMonth: Date | null;
   total: number;
 
   static from(invoice: InvoiceWithDebits): InvoiceResponseDto {

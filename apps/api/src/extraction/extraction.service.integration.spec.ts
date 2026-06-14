@@ -29,6 +29,7 @@ const EXCLUSION_PATTERNS = [
 interface ExpectedCase {
   file: string;
   expectedTotal: number;
+  expectedBillingMonth: string;
   label: string;
   expectPayments: boolean;
   expectFutureInstallments: boolean;
@@ -67,6 +68,7 @@ describeIf('ExtractionService (integration)', () => {
     {
       file: 'itau-humberto.pdf',
       expectedTotal: 18918.07,
+      expectedBillingMonth: '2026-05',
       label: 'Itaú Humberto',
       expectPayments: true,
       expectFutureInstallments: true,
@@ -74,13 +76,15 @@ describeIf('ExtractionService (integration)', () => {
     {
       file: 'Nubank_2026-05-18.pdf',
       expectedTotal: 1138.35,
+      expectedBillingMonth: '2026-05',
       label: 'Nubank',
       expectPayments: true,
       expectFutureInstallments: false,
     },
     {
-      file: 'Bradesco_ExtratoFaturaAberta-23-05-2026-compactado.pdf',
-      expectedTotal: 3992.33,
+      file: 'bradesco-final-mai.pdf',
+      expectedTotal: 4356.38,
+      expectedBillingMonth: '2026-05',
       label: 'Bradesco',
       expectPayments: true,
       expectFutureInstallments: false,
@@ -99,6 +103,10 @@ describeIf('ExtractionService (integration)', () => {
       it('invoiceTotal and sum match (±R$ 0,01)', () => {
         expect(result.invoiceTotal).toBeCloseTo(c.expectedTotal, 2);
         expect(sumNet(result.transactions)).toBeCloseTo(c.expectedTotal, 2);
+      });
+
+      it(`billingMonth matches ${c.expectedBillingMonth}`, () => {
+        expect(result.billingMonth).toBe(c.expectedBillingMonth);
       });
 
       it('no excluded patterns in descriptions', () => {
