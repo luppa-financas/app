@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>luppa — seus gastos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .mono { font-family: 'DM Mono', monospace; }
+
+    #detail-panel {
+      transform: translateX(100%);
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #detail-panel.open { transform: translateX(0); }
+
+    #search-overlay {
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.15s ease;
+    }
+    #search-overlay.open { opacity: 1; pointer-events: all; }
+
+    .bank-itau     { border-left-color: #FF6B00; }
+    .bank-nubank   { border-left-color: #820AD1; }
+    .bank-bradesco { border-left-color: #CC0000; }
+
+    .month-item { transition: background 0.1s; }
+    .month-item:hover:not(.active) { background: #F8FAFC; }
+    .month-item.active { background: #EEF2FF; color: #4F46E5; font-weight: 600; }
+
+    .tab-btn { transition: all 0.15s; }
+    .tab-btn.active { color: #4F46E5; border-bottom-color: #4F46E5; }
+    .tab-btn:not(.active) { color: #64748B; border-bottom-color: transparent; }
+    .tab-btn:not(.active):hover { color: #334155; }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { color: #4F46E5; }
+
+    .upload-zone { transition: all 0.2s; }
+    .upload-zone.drag-over { border-color: #6366F1; background: #EEF2FF; }
+
+    .upload-state { display: none; }
+    .upload-state.active { display: block; }
+
+    .status-done       { background: #DCFCE7; color: #166534; }
+    .status-processing { background: #FEF9C3; color: #854D0E; }
+    .status-failed     { background: #FEE2E2; color: #991B1B; }
+    .status-review     { background: #FEF3C7; color: #92400E; }
+
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 2px; }
+    mark { background: #EEF2FF; color: #4338CA; border-radius: 3px; padding: 0 2px; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+    .pulse { animation: pulse 1.5s ease-in-out infinite; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen">
+
+  <!-- ── Header ───────────────────────────────────────────────── -->
+  <header class="fixed top-0 left-0 right-0 z-30 bg-white border-b border-slate-200 h-14 flex items-center px-5 gap-4">
+    <span class="text-base font-semibold tracking-tight text-indigo-600 w-44 flex-shrink-0">luppa</span>
+    <button onclick="openSearch()"
+      class="flex-1 max-w-lg flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-400 rounded-lg px-4 h-9 text-sm transition-colors">
+      <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+      Buscar em todos os gastos…
+    </button>
+  </header>
+
+  <!-- ── Tab nav ───────────────────────────────────────────────── -->
+  <div class="fixed top-14 left-0 right-0 z-20 bg-white border-b border-slate-200 flex pl-5 lg:pl-52">
+    <button class="tab-btn active border-b-2 px-5 h-11 text-sm font-medium" onclick="switchView('dashboard', this)">Dashboard</button>
+    <button class="tab-btn border-b-2 px-5 h-11 text-sm font-medium" onclick="switchView('transactions', this)">Transações</button>
+    <button class="tab-btn border-b-2 px-5 h-11 text-sm font-medium" onclick="switchView('invoices', this)">Faturas</button>
+  </div>
+
+  <!-- ── Layout ───────────────────────────────────────────────── -->
+  <div class="flex pt-[calc(3.5rem+2.75rem)] min-h-screen">
+
+    <!-- Sidebar (dashboard only) -->
+    <aside id="sidebar" class="w-48 flex-shrink-0 bg-white border-r border-slate-200 fixed left-0 top-[calc(3.5rem+2.75rem)] bottom-0 overflow-y-auto py-5 px-3 hidden lg:block">
+      <p class="text-[10px] font-semibold text-slate-400 tracking-widest uppercase px-3 mb-1.5">Meses</p>
+      <nav class="space-y-0.5 mb-5">
+        <a class="month-item block px-3 py-2 rounded-lg text-sm text-slate-500 cursor-pointer">Dezembro 2025</a>
+        <a class="month-item block px-3 py-2 rounded-lg text-sm text-slate-500 cursor-pointer">Janeiro 2026</a>
+        <a class="month-item block px-3 py-2 rounded-lg text-sm text-slate-500 cursor-pointer">Fevereiro 2026</a>
+        <a class="month-item block px-3 py-2 rounded-lg text-sm text-slate-500 cursor-pointer">Março 2026</a>
+        <a class="month-item block px-3 py-2 rounded-lg text-sm text-slate-500 cursor-pointer">Abril 2026</a>
+        <a class="month-item active block px-3 py-2 rounded-lg text-sm cursor-pointer">Maio 2026</a>
+      </nav>
+      <p class="text-[10px] font-semibold text-slate-400 tracking-widest uppercase px-3 mb-1.5">Bancos</p>
+      <div class="space-y-0.5">
+        <label class="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+          <input type="checkbox" checked class="accent-indigo-600 w-3.5 h-3.5" />
+          <span class="w-2 h-2 rounded-full bg-[#FF6B00] flex-shrink-0"></span>
+          <span class="text-sm text-slate-700">Itaú</span>
+        </label>
+        <label class="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+          <input type="checkbox" checked class="accent-indigo-600 w-3.5 h-3.5" />
+          <span class="w-2 h-2 rounded-full bg-[#820AD1] flex-shrink-0"></span>
+          <span class="text-sm text-slate-700">Nubank</span>
+        </label>
+        <label class="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer">
+          <input type="checkbox" checked class="accent-indigo-600 w-3.5 h-3.5" />
+          <span class="w-2 h-2 rounded-full bg-[#CC0000] flex-shrink-0"></span>
+          <span class="text-sm text-slate-700">Bradesco</span>
+        </label>
+      </div>
+    </aside>
+
+    <!-- ── VIEW: Dashboard ──────────────────────────────────────── -->
+    <div id="view-dashboard" class="view active flex-1 lg:ml-48 p-5 lg:p-7 max-w-4xl">
+
+      <div class="mb-6">
+        <p class="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1">Maio 2026</p>
+        <div class="flex flex-wrap items-baseline gap-3">
+          <h1 class="mono text-4xl font-medium">R$ 13.232,12</h1>
+          <span class="inline-flex items-center text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+            ↑ 7,6% vs. abril
+          </span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
+        <div class="md:col-span-3 bg-white rounded-2xl border border-slate-200 p-5">
+          <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Histórico — últimos 6 meses</p>
+          <div class="flex items-center gap-4 mb-3">
+            <span class="flex items-center gap-1.5 text-xs text-slate-500"><span class="w-2 h-2 rounded-sm bg-[#FF6B00] inline-block"></span>Itaú</span>
+            <span class="flex items-center gap-1.5 text-xs text-slate-500"><span class="w-2 h-2 rounded-sm bg-[#820AD1] inline-block"></span>Nubank</span>
+            <span class="flex items-center gap-1.5 text-xs text-slate-500"><span class="w-2 h-2 rounded-sm bg-[#CC0000] inline-block"></span>Bradesco</span>
+          </div>
+          <canvas id="barChart"></canvas>
+        </div>
+        <div class="md:col-span-2 bg-white rounded-2xl border border-slate-200 p-5">
+          <div class="flex items-center justify-between mb-3">
+            <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Por categoria — maio</p>
+            <button id="pie-breadcrumb" onclick="resetPie()" class="hidden text-xs text-indigo-500 hover:text-indigo-700 font-medium transition-colors"></button>
+          </div>
+          <p class="text-[10px] text-slate-400 mb-2 hidden sm:block">Clique numa fatia para ver subcategorias</p>
+          <canvas id="pieChart"></canvas>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 mb-4">
+        <div class="flex items-center justify-between mb-4">
+          <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Metas por categoria</p>
+          <button class="text-xs text-indigo-500 hover:text-indigo-700 transition-colors">Configurar →</button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+          <div>
+            <div class="flex justify-between text-sm mb-1.5">
+              <span class="text-slate-700">Alimentação</span>
+              <span class="mono text-xs text-slate-500">R$ 3.200 / 4.000</span>
+            </div>
+            <div class="h-1.5 bg-slate-100 rounded-full"><div class="h-full bg-emerald-400 rounded-full" style="width:80%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-sm mb-1.5">
+              <span class="text-slate-700">Transporte</span>
+              <span class="mono text-xs text-slate-500">R$ 1.100 / 1.500</span>
+            </div>
+            <div class="h-1.5 bg-slate-100 rounded-full"><div class="h-full bg-emerald-400 rounded-full" style="width:73%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-sm mb-1.5">
+              <span class="text-slate-700">Moradia</span>
+              <span class="mono text-xs text-slate-500">R$ 2.800 / 3.000</span>
+            </div>
+            <div class="h-1.5 bg-slate-100 rounded-full"><div class="h-full bg-emerald-400 rounded-full" style="width:93%"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-sm mb-1.5">
+              <span class="text-slate-700 flex items-center gap-1.5">
+                Assinaturas
+                <span class="text-[10px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">+50%</span>
+              </span>
+              <span class="mono text-xs text-amber-600 font-medium">R$ 750 / 500</span>
+            </div>
+            <div class="h-1.5 bg-amber-100 rounded-full"><div class="h-full bg-amber-500 rounded-full" style="width:100%"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Faturas — Maio 2026</p>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div onclick="openDetail('itau')" class="bg-white rounded-2xl border border-slate-200 border-l-4 bank-itau p-5 cursor-pointer hover:shadow-md transition-all group">
+          <div class="flex items-start justify-between mb-4">
+            <div><p class="text-xs text-slate-400 mb-0.5">Itaú · Maio 2026</p><p class="text-xs text-slate-400">42 transações</p></div>
+            <svg class="w-4 h-4 text-slate-300 group-hover:text-indigo-400 transition-colors mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </div>
+          <p class="mono text-2xl font-medium">R$ 8.102,44</p>
+        </div>
+        <div onclick="openDetail('nubank')" class="bg-white rounded-2xl border border-slate-200 border-l-4 bank-nubank p-5 cursor-pointer hover:shadow-md transition-all group">
+          <div class="flex items-start justify-between mb-4">
+            <div><p class="text-xs text-slate-400 mb-0.5">Nubank · Maio 2026</p><p class="text-xs text-slate-400">18 transações</p></div>
+            <svg class="w-4 h-4 text-slate-300 group-hover:text-indigo-400 transition-colors mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </div>
+          <p class="mono text-2xl font-medium">R$ 1.138,35</p>
+        </div>
+        <div onclick="openDetail('bradesco')" class="bg-white rounded-2xl border border-slate-200 border-l-4 bank-bradesco p-5 cursor-pointer hover:shadow-md transition-all group">
+          <div class="flex items-start justify-between mb-4">
+            <div><p class="text-xs text-slate-400 mb-0.5">Bradesco · Maio 2026</p><p class="text-xs text-slate-400">31 transações</p></div>
+            <svg class="w-4 h-4 text-slate-300 group-hover:text-indigo-400 transition-colors mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </div>
+          <p class="mono text-2xl font-medium">R$ 3.992,33</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: Transações ─────────────────────────────────────── -->
+    <div id="view-transactions" class="view flex-1 p-5 lg:p-7">
+
+      <!-- Filters -->
+      <div class="flex flex-wrap items-center gap-3 mb-5">
+        <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 h-9 flex-1 min-w-48">
+          <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input id="tx-search" type="text" placeholder="Buscar transação…" class="text-sm w-full outline-none placeholder-slate-400" oninput="renderTable()" />
+        </div>
+        <select id="tx-month" class="bg-white border border-slate-200 rounded-lg px-3 h-9 text-sm text-slate-700 outline-none cursor-pointer" onchange="renderTable()">
+          <option value="">Todos os meses</option>
+          <option value="Mai 2026" selected>Maio 2026</option>
+          <option value="Abr 2026">Abril 2026</option>
+          <option value="Mar 2026">Março 2026</option>
+        </select>
+        <select id="tx-bank" class="bg-white border border-slate-200 rounded-lg px-3 h-9 text-sm text-slate-700 outline-none cursor-pointer" onchange="renderTable()">
+          <option value="">Todos os bancos</option>
+          <option value="Itaú">Itaú</option>
+          <option value="Nubank">Nubank</option>
+          <option value="Bradesco">Bradesco</option>
+        </select>
+        <select id="tx-category" class="bg-white border border-slate-200 rounded-lg px-3 h-9 text-sm text-slate-700 outline-none cursor-pointer" onchange="onCategoryChange()">
+          <option value="">Todas as categorias</option>
+          <option>Alimentação</option>
+          <option>Transporte</option>
+          <option>Moradia</option>
+          <option>Saúde</option>
+          <option>Compras</option>
+          <option>Assinaturas</option>
+          <option>Entretenimento</option>
+          <option>Educação</option>
+          <option>Outros</option>
+        </select>
+        <select id="tx-subcat" class="bg-white border border-slate-200 rounded-lg px-3 h-9 text-sm text-slate-700 outline-none cursor-pointer hidden" onchange="renderTable()">
+          <option value="">Todas as subcategorias</option>
+        </select>
+      </div>
+
+      <!-- Table -->
+      <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-100">
+              <th class="sortable text-left text-xs font-semibold text-slate-400 uppercase tracking-widest px-5 py-3.5" onclick="sortTable('date')">
+                Data <span id="sort-date" class="text-slate-300">↕</span>
+              </th>
+              <th class="text-left text-xs font-semibold text-slate-400 uppercase tracking-widest px-4 py-3.5">Descrição</th>
+              <th class="text-left text-xs font-semibold text-slate-400 uppercase tracking-widest px-4 py-3.5 hidden md:table-cell">Categoria / Subcategoria</th>
+              <th class="text-left text-xs font-semibold text-slate-400 uppercase tracking-widest px-4 py-3.5 hidden lg:table-cell">Banco</th>
+              <th class="sortable text-right text-xs font-semibold text-slate-400 uppercase tracking-widest px-5 py-3.5" onclick="sortTable('amount')">
+                <span id="sort-amount" class="text-slate-300">↕</span> Valor
+              </th>
+            </tr>
+          </thead>
+          <tbody id="tx-table-body"></tbody>
+        </table>
+        <!-- Pagination -->
+        <div class="flex items-center justify-between px-5 py-3.5 border-t border-slate-100 bg-slate-50/50">
+          <p id="tx-count" class="text-xs text-slate-400"></p>
+          <div class="flex items-center gap-1">
+            <button onclick="changePage(-1)" class="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">← Anterior</button>
+            <span id="tx-page" class="text-xs text-slate-500 px-2">1 / 1</span>
+            <button onclick="changePage(1)" class="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Próxima →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VIEW: Faturas ────────────────────────────────────────── -->
+    <div id="view-invoices" class="view flex-1 p-5 lg:p-7 max-w-3xl">
+
+      <!-- Upload area -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
+
+        <!-- State: idle -->
+        <div id="upload-idle" class="upload-state active">
+          <div id="drop-zone"
+            class="upload-zone border-2 border-dashed border-slate-200 rounded-xl p-10 text-center cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30"
+            onclick="document.getElementById('file-input').click()"
+            ondragover="e=>{e.preventDefault();this.classList.add('drag-over')}"
+            ondragleave="this.classList.remove('drag-over')"
+            ondrop="handleDrop(event)">
+            <div class="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center mx-auto mb-4">
+              <svg class="w-6 h-6 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+              </svg>
+            </div>
+            <p class="text-sm font-medium text-slate-700 mb-1">Arraste sua fatura aqui</p>
+            <p class="text-xs text-slate-400">ou clique para selecionar · PDF até 20 MB</p>
+            <input id="file-input" type="file" accept=".pdf" class="hidden" onchange="handleFile(this.files[0])" />
+          </div>
+        </div>
+
+        <!-- State: processing -->
+        <div id="upload-processing" class="upload-state">
+          <div class="flex flex-col items-center py-8">
+            <div class="w-12 h-12 border-2 border-indigo-200 border-t-indigo-600 rounded-full spin mb-5"></div>
+            <p id="processing-label" class="text-sm font-medium text-slate-700 mb-1 pulse">Lendo sua fatura…</p>
+            <p class="text-xs text-slate-400">Isso pode levar alguns segundos</p>
+          </div>
+        </div>
+
+        <!-- State: confirmation -->
+        <div id="upload-confirm" class="upload-state">
+          <div class="flex items-center gap-3 mb-5">
+            <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-slate-800">Fatura identificada</p>
+              <p class="text-xs text-slate-400">Confirme os dados antes de processar</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-3 mb-5">
+            <div class="bg-slate-50 rounded-xl p-4">
+              <p class="text-xs text-slate-400 mb-1">Banco</p>
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-[#FF6B00]"></span>
+                <p class="text-sm font-medium text-slate-800">Itaú</p>
+              </div>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-4">
+              <p class="text-xs text-slate-400 mb-1">Mês</p>
+              <p class="text-sm font-medium text-slate-800">Maio 2026</p>
+            </div>
+            <div class="bg-slate-50 rounded-xl p-4">
+              <p class="text-xs text-slate-400 mb-1">Total detectado</p>
+              <p class="mono text-sm font-medium text-slate-800">R$ 8.102,44</p>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mb-4">Os dados estão incorretos? <button class="text-indigo-500 hover:text-indigo-700 underline" onclick="showUploadState('idle')">Enviar outra fatura</button></p>
+          <div class="flex gap-3">
+            <button onclick="simulateSuccess()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl px-4 py-2.5 transition-colors">
+              Confirmar e processar
+            </button>
+            <button onclick="showUploadState('idle')" class="px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+              Cancelar
+            </button>
+          </div>
+        </div>
+
+        <!-- State: success -->
+        <div id="upload-success" class="upload-state">
+          <div class="flex flex-col items-center py-8 text-center">
+            <div class="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center mb-4">
+              <svg class="w-6 h-6 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
+            <p class="text-sm font-semibold text-slate-800 mb-1">Fatura processada</p>
+            <p class="text-xs text-slate-400 mb-5">Itaú · Maio 2026 adicionada com sucesso</p>
+            <button onclick="showUploadState('idle')" class="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
+              + Adicionar outra fatura
+            </button>
+          </div>
+        </div>
+
+        <!-- State: error — wrong format -->
+        <div id="upload-error-format" class="upload-state">
+          <div class="flex items-start gap-4 p-4 bg-red-50 border border-red-200 rounded-xl mb-4">
+            <svg class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div>
+              <p class="text-sm font-semibold text-red-800">Formato inválido</p>
+              <p class="text-xs text-red-600 mt-0.5">Só aceitamos arquivos PDF. Verifique o arquivo e tente novamente.</p>
+            </div>
+          </div>
+          <button onclick="showUploadState('idle')" class="w-full border border-slate-200 hover:bg-slate-50 text-sm text-slate-700 rounded-xl px-4 py-2.5 transition-colors">
+            Tentar novamente
+          </button>
+        </div>
+
+        <!-- State: error — extraction failed -->
+        <div id="upload-error-extraction" class="upload-state">
+          <div class="flex items-start gap-4 p-4 bg-red-50 border border-red-200 rounded-xl mb-4">
+            <svg class="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <div>
+              <p class="text-sm font-semibold text-red-800">Não conseguimos ler essa fatura</p>
+              <p class="text-xs text-red-600 mt-0.5">O arquivo pode estar corrompido ou em um formato não suportado. Tente exportar novamente pelo app do banco.</p>
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <button onclick="showUploadState('idle')" class="flex-1 border border-slate-200 hover:bg-slate-50 text-sm text-slate-700 rounded-xl px-4 py-2.5 transition-colors">
+              Tentar outro arquivo
+            </button>
+            <button class="px-4 py-2.5 text-sm text-indigo-600 hover:text-indigo-700 font-medium transition-colors">
+              Reportar problema
+            </button>
+          </div>
+        </div>
+
+        <!-- State: error — password protected -->
+        <div id="upload-error-password" class="upload-state">
+          <div class="flex items-start gap-4 p-4 bg-amber-50 border border-amber-200 rounded-xl mb-5">
+            <svg class="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+            </svg>
+            <div>
+              <p class="text-sm font-semibold text-amber-800">Esta fatura está protegida por senha</p>
+              <p class="text-xs text-amber-700 mt-0.5">Geralmente é o CPF sem pontos ou os primeiros dígitos da conta.</p>
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <input type="password" placeholder="Senha da fatura" class="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400" />
+            <button onclick="simulateConfirm()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl px-5 py-2.5 transition-colors">
+              Desbloquear
+            </button>
+          </div>
+          <p class="text-xs text-slate-400 mt-2">A senha não é armazenada e é usada somente neste momento.</p>
+        </div>
+
+        <!-- State: error — duplicate -->
+        <div id="upload-error-duplicate" class="upload-state">
+          <div class="flex items-start gap-4 p-4 bg-amber-50 border border-amber-200 rounded-xl mb-4">
+            <svg class="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+            <div>
+              <p class="text-sm font-semibold text-amber-800">Fatura já importada</p>
+              <p class="text-xs text-amber-700 mt-0.5">Encontramos uma fatura Itaú · Maio 2026 já cadastrada. Deseja substituir?</p>
+            </div>
+          </div>
+          <div class="flex gap-3">
+            <button onclick="simulateSuccess()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl px-4 py-2.5 transition-colors">
+              Substituir fatura existente
+            </button>
+            <button onclick="showUploadState('idle')" class="px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+              Cancelar
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Demo error states trigger -->
+      <div class="mb-6">
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Simular estados de erro</p>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="showUploadState('processing')" class="text-xs border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 rounded-lg px-3 py-1.5 transition-colors">Processando…</button>
+          <button onclick="simulateConfirm()" class="text-xs border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 rounded-lg px-3 py-1.5 transition-colors">Confirmação</button>
+          <button onclick="showUploadState('error-format')" class="text-xs border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 rounded-lg px-3 py-1.5 transition-colors">Formato inválido</button>
+          <button onclick="showUploadState('error-password')" class="text-xs border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 rounded-lg px-3 py-1.5 transition-colors">Senha necessária</button>
+          <button onclick="showUploadState('error-extraction')" class="text-xs border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 rounded-lg px-3 py-1.5 transition-colors">Falha na extração</button>
+          <button onclick="showUploadState('error-duplicate')" class="text-xs border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 rounded-lg px-3 py-1.5 transition-colors">Duplicada</button>
+        </div>
+      </div>
+
+      <!-- Invoice list -->
+      <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Faturas importadas</p>
+      <div class="space-y-2">
+        <div class="bg-white rounded-xl border border-slate-200 border-l-4 bank-itau flex items-center justify-between px-5 py-3.5">
+          <div class="flex items-center gap-4">
+            <div>
+              <p class="text-sm font-medium text-slate-800">Itaú</p>
+              <p class="text-xs text-slate-400">Maio 2026 · 42 transações</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="status-done text-xs font-semibold px-2.5 py-1 rounded-full">Processada</span>
+            <p class="mono text-sm text-slate-700">R$ 8.102,44</p>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 border-l-4 bank-nubank flex items-center justify-between px-5 py-3.5">
+          <div class="flex items-center gap-4">
+            <div>
+              <p class="text-sm font-medium text-slate-800">Nubank</p>
+              <p class="text-xs text-slate-400">Maio 2026 · 18 transações</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="status-done text-xs font-semibold px-2.5 py-1 rounded-full">Processada</span>
+            <p class="mono text-sm text-slate-700">R$ 1.138,35</p>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 border-l-4 bank-bradesco flex items-center justify-between px-5 py-3.5">
+          <div class="flex items-center gap-4">
+            <div>
+              <p class="text-sm font-medium text-slate-800">Bradesco</p>
+              <p class="text-xs text-slate-400">Maio 2026 · 31 transações</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="status-review text-xs font-semibold px-2.5 py-1 rounded-full">Revisar</span>
+            <p class="mono text-sm text-slate-700">R$ 3.992,33</p>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 border-l-4 bank-itau flex items-center justify-between px-5 py-3.5">
+          <div class="flex items-center gap-4">
+            <div>
+              <p class="text-sm font-medium text-slate-800">Itaú</p>
+              <p class="text-xs text-slate-400">Abril 2026</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="status-processing text-xs font-semibold px-2.5 py-1 rounded-full">Processando…</span>
+            <p class="mono text-sm text-slate-400">—</p>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 border-l-4 border-l-slate-300 flex items-center justify-between px-5 py-3.5">
+          <div class="flex items-center gap-4">
+            <div>
+              <p class="text-sm font-medium text-slate-800">Bradesco</p>
+              <p class="text-xs text-slate-400">Março 2026 · 28 transações</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="status-failed text-xs font-semibold px-2.5 py-1 rounded-full">Falhou</span>
+            <button class="text-xs text-indigo-500 hover:text-indigo-700 font-medium">Tentar novamente</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end layout -->
+
+  <!-- ── Detail Panel ──────────────────────────────────────────── -->
+  <div id="detail-panel" class="fixed right-0 top-[calc(3.5rem+2.75rem)] bottom-0 w-full sm:w-96 bg-white border-l border-slate-200 z-20 flex flex-col shadow-2xl">
+    <div id="panel-header" class="flex items-center justify-between px-5 py-4 border-b border-slate-100 border-l-4 flex-shrink-0">
+      <div>
+        <p id="panel-bank-label" class="text-xs text-slate-400 mb-0.5"></p>
+        <p class="text-sm font-medium text-slate-700">Maio 2026</p>
+      </div>
+      <button onclick="closeDetail()" class="text-slate-400 hover:text-slate-600 transition-colors p-1">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="px-5 py-4 border-b border-slate-100 flex-shrink-0">
+      <p id="panel-total" class="mono text-3xl font-medium"></p>
+    </div>
+    <div class="px-5 py-3 border-b border-slate-100 flex-shrink-0">
+      <div class="flex items-center gap-2 bg-slate-50 rounded-lg px-3 h-9">
+        <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input id="panel-search" type="text" placeholder="Buscar nessa fatura…" class="bg-transparent text-sm w-full outline-none placeholder-slate-400" oninput="filterTransactions()" />
+      </div>
+    </div>
+    <div id="transactions-list" class="flex-1 overflow-y-auto px-5 py-3"></div>
+  </div>
+
+  <div id="backdrop" class="fixed inset-0 z-10 bg-black/20 hidden" onclick="closeDetail()"></div>
+
+  <!-- ── Global Search ─────────────────────────────────────────── -->
+  <div id="search-overlay" class="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm flex items-start justify-center pt-16 px-4">
+    <div class="bg-white rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden">
+      <div class="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
+        <svg class="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input id="global-search-input" type="text" placeholder="Netflix, Uber, assinatura…" class="flex-1 text-base outline-none placeholder-slate-400" oninput="globalSearch()" />
+        <kbd onclick="closeSearch()" class="text-xs text-slate-400 border border-slate-200 rounded px-1.5 py-0.5 cursor-pointer hover:bg-slate-50">esc</kbd>
+      </div>
+      <div id="global-search-results" class="max-h-72 overflow-y-auto">
+        <p class="text-sm text-slate-400 text-center py-10">Digite para buscar em todas as faturas</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── Data ──────────────────────────────────────────────────────
+    const banks = {
+      itau:     { name: 'Itaú',     color: '#FF6B00', total: 'R$ 8.102,44', count: 42 },
+      nubank:   { name: 'Nubank',   color: '#820AD1', total: 'R$ 1.138,35', count: 18 },
+      bradesco: { name: 'Bradesco', color: '#CC0000', total: 'R$ 3.992,33', count: 31 },
+    };
+
+    const bankTransactions = {
+      itau: [
+        { date: '28/05', desc: 'UBER *TRIP',       amount: 'R$ 42,00',    cat: 'Transporte',    subcat: 'App' },
+        { date: '28/05', desc: 'RAPPI',             amount: 'R$ 89,50',    cat: 'Alimentação',   subcat: 'Delivery' },
+        { date: '27/05', desc: 'NETFLIX',           amount: 'R$ 55,90',    cat: 'Assinaturas',   subcat: 'Streaming' },
+        { date: '26/05', desc: 'SMART FIT',         amount: 'R$ 99,90',    cat: 'Saúde',         subcat: 'Academia' },
+        { date: '25/05', desc: 'POSTO SHELL',       amount: 'R$ 180,00',   cat: 'Transporte',    subcat: 'Combustível' },
+        { date: '24/05', desc: 'MERCADO LIVRE',     amount: 'R$ 320,00',   cat: 'Compras',       subcat: 'Online' },
+        { date: '23/05', desc: 'DROGA RAIA',        amount: 'R$ 95,40',    cat: 'Saúde',         subcat: 'Farmácia' },
+        { date: '22/05', desc: 'SPOTIFY',           amount: 'R$ 21,90',    cat: 'Assinaturas',   subcat: 'Música' },
+        { date: '21/05', desc: 'AMAZON PRIME',      amount: 'R$ 19,90',    cat: 'Assinaturas',   subcat: 'Streaming' },
+        { date: '20/05', desc: 'IFOOD',             amount: 'R$ 67,80',    cat: 'Alimentação',   subcat: 'Delivery' },
+        { date: '19/05', desc: 'PADARIA VILA',      amount: 'R$ 38,50',    cat: 'Alimentação',   subcat: 'Padaria' },
+        { date: '18/05', desc: 'CONDOMÍNIO',        amount: 'R$ 1.200,00', cat: 'Moradia',       subcat: 'Condomínio' },
+        { date: '17/05', desc: 'STEAM GAMES',       amount: 'R$ 89,90',    cat: 'Entretenimento',subcat: 'Games' },
+        { date: '16/05', desc: 'POSTO IPIRANGA',    amount: 'R$ 210,00',   cat: 'Transporte',    subcat: 'Combustível' },
+        { date: '15/05', desc: '99 TAXI',           amount: 'R$ 34,00',    cat: 'Transporte',    subcat: 'App' },
+        { date: '14/05', desc: 'FARMÁCIA SÃO JOÃO', amount: 'R$ 45,80',   cat: 'Saúde',         subcat: 'Farmácia' },
+        { date: '13/05', desc: 'UBER *TRIP',        amount: 'R$ 31,00',    cat: 'Transporte',    subcat: 'App' },
+        { date: '12/05', desc: 'SUPERMERCADO BIG',  amount: 'R$ 380,00',   cat: 'Alimentação',   subcat: 'Supermercado' },
+      ],
+      nubank: [
+        { date: '28/05', desc: 'PETZ',              amount: 'R$ 145,00',  cat: 'Compras',      subcat: 'Pet' },
+        { date: '26/05', desc: 'DISNEY+',           amount: 'R$ 43,90',   cat: 'Assinaturas',  subcat: 'Streaming' },
+        { date: '25/05', desc: 'UBER EATS',         amount: 'R$ 58,70',   cat: 'Alimentação',  subcat: 'Delivery' },
+        { date: '24/05', desc: 'SHOPEE',            amount: 'R$ 215,00',  cat: 'Compras',      subcat: 'Online' },
+        { date: '22/05', desc: 'APPLE ONE',         amount: 'R$ 49,90',   cat: 'Assinaturas',  subcat: 'Streaming' },
+        { date: '20/05', desc: 'BURGER KING',       amount: 'R$ 42,80',   cat: 'Alimentação',  subcat: 'Restaurante' },
+        { date: '18/05', desc: 'ZARA',              amount: 'R$ 280,00',  cat: 'Compras',      subcat: 'Roupas' },
+        { date: '15/05', desc: 'LINKEDIN PREMIUM',  amount: 'R$ 89,90',   cat: 'Assinaturas',  subcat: 'Produtividade' },
+        { date: '10/05', desc: 'FARMÁCIA SÃO PAULO',amount: 'R$ 78,15',   cat: 'Saúde',        subcat: 'Farmácia' },
+        { date: '05/05', desc: 'AMAZON',            amount: 'R$ 135,00',  cat: 'Compras',      subcat: 'Online' },
+      ],
+      bradesco: [
+        { date: '29/05', desc: 'SUPERMERCADO EXTRA',amount: 'R$ 420,00',  cat: 'Alimentação',  subcat: 'Supermercado' },
+        { date: '27/05', desc: 'HBO MAX',           amount: 'R$ 34,90',   cat: 'Assinaturas',  subcat: 'Streaming' },
+        { date: '26/05', desc: 'AMERICANAS',        amount: 'R$ 189,00',  cat: 'Compras',      subcat: 'Online' },
+        { date: '24/05', desc: 'ALUGUEL',           amount: 'R$ 1.600,00',cat: 'Moradia',      subcat: 'Aluguel' },
+        { date: '22/05', desc: 'INTERNET VIVO',     amount: 'R$ 99,90',   cat: 'Moradia',      subcat: 'Internet' },
+        { date: '20/05', desc: 'SUSHI RESTAURANTE', amount: 'R$ 320,00',  cat: 'Alimentação',  subcat: 'Restaurante' },
+        { date: '18/05', desc: 'CURSO UDEMY',       amount: 'R$ 59,90',   cat: 'Educação',     subcat: 'Cursos Online' },
+        { date: '15/05', desc: 'MANUTENÇÃO CARRO',  amount: 'R$ 380,00',  cat: 'Transporte',   subcat: 'Manutenção' },
+        { date: '12/05', desc: 'ACADEMIA BODYTECH', amount: 'R$ 180,00',  cat: 'Saúde',        subcat: 'Academia' },
+        { date: '08/05', desc: 'MERCADÃO ZÉ',       amount: 'R$ 280,00',  cat: 'Alimentação',  subcat: 'Supermercado' },
+        { date: '05/05', desc: 'AMAZON AWS',        amount: 'R$ 28,63',   cat: 'Outros',       subcat: 'Cloud' },
+      ],
+    };
+
+    const allTransactions = Object.entries(bankTransactions).flatMap(([bank, txs]) =>
+      txs.map(t => ({ ...t, bank, bankName: banks[bank].name, bankColor: banks[bank].color, month: 'Mai 2026',
+        amountNum: parseFloat(t.amount.replace('R$ ','').replace('.','').replace(',','.')) }))
+    );
+
+    // ── Charts ────────────────────────────────────────────────────
+    new Chart(document.getElementById('barChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Dez', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai'],
+        datasets: [
+          { label: 'Itaú',     data: [7200,8900,6800,9100,7500,8102], backgroundColor: '#FF6B00',
+            borderRadius: { topLeft:0, topRight:0, bottomLeft:3, bottomRight:3 } },
+          { label: 'Nubank',   data: [950,1200,880,1050,1100,1138],   backgroundColor: '#820AD1', borderRadius: 0 },
+          { label: 'Bradesco', data: [3100,4100,3500,4300,3700,3992], backgroundColor: '#CC0000',
+            borderRadius: { topLeft:4, topRight:4, bottomLeft:0, bottomRight:0 } },
+        ]
+      },
+      options: {
+        plugins: { legend: { display: false }, tooltip: {
+          callbacks: { label: c => ` ${c.dataset.label}: R$ ${c.raw.toLocaleString('pt-BR')}` }
+        }},
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { font: { family:'Inter', size:11 }, color:'#94A3B8' } },
+          y: { stacked: true, grid: { color:'#F8FAFC' },
+               ticks: { font: { family:'DM Mono', size:10 }, color:'#94A3B8', callback: v => 'R$'+(v/1000).toFixed(0)+'k' } }
+        },
+        responsive: true, maintainAspectRatio: true,
+      }
+    });
+
+    const PIE_COLORS = ['#6366F1','#8B5CF6','#EC4899','#F59E0B','#10B981','#3B82F6','#F97316','#94A3B8'];
+    const catTotals  = { 'Alimentação':3200, 'Moradia':2800, 'Compras':1800, 'Transporte':1100, 'Saúde':800, 'Assinaturas':750, 'Entretenimento':400, 'Outros':382 };
+    let pieDepth = 'root', selectedCat = null;
+
+    const pieChart = new Chart(document.getElementById('pieChart'), {
+      type: 'doughnut',
+      data: {
+        labels: Object.keys(catTotals),
+        datasets: [{ data: Object.values(catTotals), backgroundColor: PIE_COLORS, borderWidth: 0, spacing: 2 }]
+      },
+      options: {
+        onClick: (_, els) => { if (els.length) drillPie(pieChart.data.labels[els[0].index]); },
+        plugins: { legend: { position: 'bottom',
+          labels: { font: { family:'Inter', size:10 }, color:'#64748B', boxWidth:10, padding:10 } } },
+        cutout: '62%', responsive: true, maintainAspectRatio: true,
+      }
+    });
+
+    function drillPie(cat) {
+      const txs = allTransactions.filter(t => t.cat === cat);
+      const subcatMap = {};
+      txs.forEach(t => { subcatMap[t.subcat] = (subcatMap[t.subcat] || 0) + t.amountNum; });
+      if (Object.keys(subcatMap).length < 2) return;
+      pieChart.data.labels = Object.keys(subcatMap);
+      pieChart.data.datasets[0].data = Object.values(subcatMap);
+      pieChart.data.datasets[0].backgroundColor = PIE_COLORS;
+      pieChart.update();
+      pieDepth = 'sub'; selectedCat = cat;
+      document.getElementById('pie-breadcrumb').classList.remove('hidden');
+      document.getElementById('pie-breadcrumb').textContent = `← ${cat}`;
+    }
+
+    function resetPie() {
+      pieChart.data.labels = Object.keys(catTotals);
+      pieChart.data.datasets[0].data = Object.values(catTotals);
+      pieChart.data.datasets[0].backgroundColor = PIE_COLORS;
+      pieChart.update();
+      pieDepth = 'root'; selectedCat = null;
+      document.getElementById('pie-breadcrumb').classList.add('hidden');
+    }
+
+    // ── View switching ────────────────────────────────────────────
+    function switchView(name, btn) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('view-' + name).classList.add('active');
+      btn.classList.add('active');
+      document.getElementById('sidebar').style.display = name === 'dashboard' ? '' : 'none';
+      if (name === 'transactions') renderTable();
+    }
+
+    // ── Transactions Table ────────────────────────────────────────
+    let txPage = 1, txSort = { col: 'date', dir: 1 };
+    const PER_PAGE = 15;
+
+    function onCategoryChange() {
+      const cat = document.getElementById('tx-category').value;
+      const subcatEl = document.getElementById('tx-subcat');
+      subcatEl.innerHTML = '<option value="">Todas as subcategorias</option>';
+      if (cat) {
+        const subcats = [...new Set(allTransactions.filter(t => t.cat === cat && t.subcat).map(t => t.subcat))].sort();
+        subcats.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; subcatEl.appendChild(o); });
+        subcatEl.classList.remove('hidden');
+      } else {
+        subcatEl.classList.add('hidden');
+      }
+      txPage = 1;
+      renderTable();
+    }
+
+    function renderTable() {
+      const q      = document.getElementById('tx-search').value.toLowerCase();
+      const mon    = document.getElementById('tx-month').value;
+      const bnk    = document.getElementById('tx-bank').value;
+      const cat    = document.getElementById('tx-category').value;
+      const subcat = document.getElementById('tx-subcat').value;
+
+      let rows = allTransactions.filter(t =>
+        (!q      || t.desc.toLowerCase().includes(q) || t.cat.toLowerCase().includes(q) || (t.subcat || '').toLowerCase().includes(q)) &&
+        (!mon    || t.month === mon) &&
+        (!bnk    || t.bankName === bnk) &&
+        (!cat    || t.cat === cat) &&
+        (!subcat || t.subcat === subcat)
+      );
+
+      rows.sort((a, b) => {
+        if (txSort.col === 'amount') return txSort.dir * (a.amountNum - b.amountNum);
+        return txSort.dir * a.date.localeCompare(b.date);
+      });
+
+      const total = rows.length;
+      const pages = Math.max(1, Math.ceil(total / PER_PAGE));
+      if (txPage > pages) txPage = pages;
+      const slice = rows.slice((txPage - 1) * PER_PAGE, txPage * PER_PAGE);
+
+      const fmt = n => 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+
+      document.getElementById('tx-table-body').innerHTML = slice.length ? slice.map(t => `
+        <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+          <td class="mono text-xs text-slate-500 px-5 py-3.5 whitespace-nowrap">${t.date}</td>
+          <td class="px-4 py-3.5">
+            <p class="text-sm text-slate-800">${t.desc}</p>
+          </td>
+          <td class="px-4 py-3.5 hidden md:table-cell">
+            <span class="text-xs text-slate-500 bg-slate-100 rounded-full px-2.5 py-1">${t.cat}</span>
+            ${t.subcat ? `<span class="text-xs text-slate-400 ml-1">· ${t.subcat}</span>` : ''}
+          </td>
+          <td class="px-4 py-3.5 hidden lg:table-cell">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${t.bankColor}"></span>
+              <span class="text-xs text-slate-500">${t.bankName}</span>
+            </div>
+          </td>
+          <td class="mono text-sm text-slate-800 text-right px-5 py-3.5 whitespace-nowrap">${fmt(t.amountNum)}</td>
+        </tr>
+      `).join('') : `
+        <tr><td colspan="5" class="text-center py-16 text-sm text-slate-400">Nenhuma transação encontrada</td></tr>
+      `;
+
+      document.getElementById('tx-count').textContent = total
+        ? `${total} transaç${total !== 1 ? 'ões' : 'ão'} · Total: ${fmt(rows.reduce((s,t) => s + t.amountNum, 0))}`
+        : '';
+      document.getElementById('tx-page').textContent = `${txPage} / ${pages}`;
+    }
+
+    function sortTable(col) {
+      if (txSort.col === col) txSort.dir *= -1;
+      else { txSort.col = col; txSort.dir = 1; }
+      document.querySelectorAll('[id^="sort-"]').forEach(el => el.textContent = '↕');
+      document.getElementById('sort-' + col).textContent = txSort.dir === 1 ? '↑' : '↓';
+      txPage = 1;
+      renderTable();
+    }
+
+    function changePage(dir) {
+      const total = allTransactions.length;
+      const pages = Math.ceil(total / PER_PAGE);
+      txPage = Math.max(1, Math.min(pages, txPage + dir));
+      renderTable();
+    }
+
+    // ── Detail Panel ──────────────────────────────────────────────
+    let currentBank = null;
+
+    function openDetail(bank) {
+      currentBank = bank;
+      const d = banks[bank];
+      document.getElementById('panel-bank-label').textContent = d.name;
+      document.getElementById('panel-total').textContent = d.total;
+      document.getElementById('panel-header').style.borderLeftColor = d.color;
+      document.getElementById('panel-search').value = '';
+      renderTransactions(bankTransactions[bank]);
+      document.getElementById('detail-panel').classList.add('open');
+      document.getElementById('backdrop').classList.remove('hidden');
+    }
+
+    function closeDetail() {
+      document.getElementById('detail-panel').classList.remove('open');
+      document.getElementById('backdrop').classList.add('hidden');
+      currentBank = null;
+    }
+
+    function renderTransactions(txs) {
+      const list = document.getElementById('transactions-list');
+      if (!txs.length) {
+        list.innerHTML = '<p class="text-sm text-slate-400 text-center py-10">Nenhuma transação encontrada</p>';
+        return;
+      }
+      list.innerHTML = txs.map(t => `
+        <div class="flex items-center justify-between py-3 border-b border-slate-50 last:border-0">
+          <div class="flex-1 min-w-0 pr-4">
+            <p class="text-sm text-slate-800 truncate">${t.desc}</p>
+            <p class="text-xs text-slate-400 mt-0.5">${t.date} · ${t.cat}</p>
+          </div>
+          <p class="mono text-sm text-slate-700 flex-shrink-0">${t.amount}</p>
+        </div>
+      `).join('');
+    }
+
+    function filterTransactions() {
+      if (!currentBank) return;
+      const q = document.getElementById('panel-search').value.toLowerCase();
+      const filtered = bankTransactions[currentBank].filter(t =>
+        t.desc.toLowerCase().includes(q) || t.cat.toLowerCase().includes(q)
+      );
+      renderTransactions(filtered);
+    }
+
+    // ── Upload flow ───────────────────────────────────────────────
+    function showUploadState(state) {
+      document.querySelectorAll('.upload-state').forEach(el => el.classList.remove('active'));
+      document.getElementById('upload-' + state).classList.add('active');
+    }
+
+    function handleFile(file) {
+      if (!file) return;
+      if (file.type !== 'application/pdf') { showUploadState('error-format'); return; }
+      showUploadState('processing');
+      let step = 0;
+      const labels = ['Lendo sua fatura…', 'Identificando banco…', 'Extraindo transações…'];
+      const el = document.getElementById('processing-label');
+      const interval = setInterval(() => {
+        step++;
+        if (step < labels.length) { el.textContent = labels[step]; }
+        else { clearInterval(interval); simulateConfirm(); }
+      }, 1200);
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+      document.getElementById('drop-zone').classList.remove('drag-over');
+      handleFile(e.dataTransfer.files[0]);
+    }
+
+    function simulateConfirm() { showUploadState('confirm'); }
+    function simulateSuccess() { showUploadState('success'); }
+
+    // ── Global Search ─────────────────────────────────────────────
+    function openSearch() {
+      document.getElementById('search-overlay').classList.add('open');
+      setTimeout(() => document.getElementById('global-search-input').focus(), 60);
+    }
+
+    function closeSearch() {
+      document.getElementById('search-overlay').classList.remove('open');
+      document.getElementById('global-search-input').value = '';
+      document.getElementById('global-search-results').innerHTML =
+        '<p class="text-sm text-slate-400 text-center py-10">Digite para buscar em todas as faturas</p>';
+    }
+
+    function globalSearch() {
+      const q = document.getElementById('global-search-input').value.toLowerCase().trim();
+      const container = document.getElementById('global-search-results');
+      if (!q) {
+        container.innerHTML = '<p class="text-sm text-slate-400 text-center py-10">Digite para buscar em todas as faturas</p>';
+        return;
+      }
+      const matches = allTransactions.filter(t =>
+        t.desc.toLowerCase().includes(q) || t.cat.toLowerCase().includes(q)
+      );
+      if (!matches.length) {
+        container.innerHTML = `<p class="text-sm text-slate-400 text-center py-10">Nenhum resultado para "<strong class="text-slate-600">${q}</strong>"</p>`;
+        return;
+      }
+      const total = matches.reduce((s, t) => s + t.amountNum, 0);
+      const fmt = n => 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+      const hl = s => s.replace(new RegExp(q, 'gi'), m => `<mark>${m}</mark>`);
+      container.innerHTML = `
+        <div class="flex items-center justify-between px-5 py-2.5 border-b border-slate-100">
+          <span class="text-xs text-slate-400">${matches.length} resultado${matches.length > 1 ? 's' : ''}</span>
+          <span class="mono text-xs font-medium text-slate-600">Total: ${fmt(total)}</span>
+        </div>
+        <div class="px-5">
+          ${matches.map(t => `
+            <div class="flex items-center justify-between py-3 border-b border-slate-50 last:border-0">
+              <div class="flex items-center gap-3 flex-1 min-w-0 pr-4">
+                <span class="w-2 h-2 rounded-full flex-shrink-0" style="background:${t.bankColor}"></span>
+                <div class="min-w-0">
+                  <p class="text-sm text-slate-800">${hl(t.desc)}</p>
+                  <p class="text-xs text-slate-400 mt-0.5">${t.date} · ${t.bankName} · ${t.cat}</p>
+                </div>
+              </div>
+              <p class="mono text-sm text-slate-700 flex-shrink-0">${fmt(t.amountNum)}</p>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { closeSearch(); closeDetail(); }
+    });
+
+    renderTable();
+  </script>
+</body>
+</html>
