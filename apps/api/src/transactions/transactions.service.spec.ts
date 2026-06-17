@@ -12,6 +12,7 @@ const mockTransactionsRepository = {
   update: jest.fn(),
   countByUserAndDescription: jest.fn(),
   updateManyByUserAndDescription: jest.fn(),
+  findPaginated: jest.fn(),
 };
 
 const mockMerchantRulesRepository = {
@@ -147,6 +148,53 @@ describe('TransactionsService', () => {
           category: 'Transporte',
           subcategory: null,
         }),
+      );
+    });
+  });
+
+  describe('findMany', () => {
+    it('delegates to repository with userId and filters', async () => {
+      mockTransactionsRepository.findPaginated.mockResolvedValue({
+        data: [],
+        total: 0,
+      });
+
+      await service.findMany('user-1', {
+        month: '2026-05',
+        bank: 'itau',
+        page: 1,
+        limit: 20,
+      });
+
+      expect(mockTransactionsRepository.findPaginated).toHaveBeenCalledWith(
+        'user-1',
+        { month: '2026-05', bank: 'itau', page: 1, limit: 20 },
+      );
+    });
+
+    it('returns { data, total } from repository', async () => {
+      const rows = [{ id: 'tx-1' }];
+      mockTransactionsRepository.findPaginated.mockResolvedValue({
+        data: rows,
+        total: 1,
+      });
+
+      const result = await service.findMany('user-1', { page: 1, limit: 20 });
+
+      expect(result).toEqual({ data: rows, total: 1 });
+    });
+
+    it('defaults page to 1 and limit to 20 when not provided', async () => {
+      mockTransactionsRepository.findPaginated.mockResolvedValue({
+        data: [],
+        total: 0,
+      });
+
+      await service.findMany('user-1', {});
+
+      expect(mockTransactionsRepository.findPaginated).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ page: 1, limit: 20 }),
       );
     });
   });

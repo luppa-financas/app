@@ -28,8 +28,12 @@ export class TransactionsListener {
         INVOICES_BUCKET,
         event.storagePath,
       );
-      const { transactions: extracted, billingMonth } =
-        await this.extractionService.extract(pdf);
+      const {
+        transactions: extracted,
+        billingMonth,
+        bank,
+        invoiceTotal,
+      } = await this.extractionService.extract(pdf);
       const classifications =
         await this.categorizationService.classifyMany(extracted);
       const transactions = extracted.map((t, i) => ({
@@ -40,11 +44,11 @@ export class TransactionsListener {
         event.invoiceId,
         transactions,
       );
-      await this.invoicesRepository.updateStatus(
-        event.invoiceId,
-        InvoiceStatus.DONE,
-        new Date(`${billingMonth}-01T00:00:00.000Z`),
-      );
+      await this.invoicesRepository.updateStatus(event.invoiceId, InvoiceStatus.DONE, {
+        billingMonth: new Date(`${billingMonth}-01T00:00:00.000Z`),
+        bank,
+        invoiceTotal,
+      });
     } catch (error) {
       this.logger.error(
         `Failed to process invoice ${event.invoiceId}`,

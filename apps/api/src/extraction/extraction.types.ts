@@ -25,6 +25,7 @@ export interface ExtractedFutureInstallment {
 export interface ExtractionResult {
   invoiceTotal: number;
   billingMonth: string;
+  bank: string;
   transactions: ExtractedTransaction[];
   payments: ExtractedPayment[];
   futureInstallments: ExtractedFutureInstallment[];

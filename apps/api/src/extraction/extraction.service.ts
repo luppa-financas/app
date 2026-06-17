@@ -391,6 +391,7 @@ export class ExtractionService {
     return {
       invoiceTotal: result.invoiceTotal,
       billingMonth: result.billingMonth,
+      bank,
       transactions,
       payments,
       futureInstallments,

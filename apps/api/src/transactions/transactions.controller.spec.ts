@@ -7,6 +7,7 @@ const mockTransactionsService = {
   update: jest.fn(),
   countByDescription: jest.fn(),
   bulkCategorize: jest.fn(),
+  findMany: jest.fn(),
 };
 
 describe('TransactionsController', () => {
@@ -22,6 +23,46 @@ describe('TransactionsController', () => {
 
     controller = module.get(TransactionsController);
     jest.clearAllMocks();
+  });
+
+  describe('GET /transactions', () => {
+    const userId = 'user-1';
+
+    it('calls service.findMany with all query params', async () => {
+      mockTransactionsService.findMany.mockResolvedValue({ data: [], total: 0 });
+
+      await controller.findMany(userId, '2026-05', 'itau', 'Alimentação', 'Delivery', 'uber', 2, 10);
+
+      expect(mockTransactionsService.findMany).toHaveBeenCalledWith(userId, {
+        month: '2026-05',
+        bank: 'itau',
+        category: 'Alimentação',
+        subcategory: 'Delivery',
+        q: 'uber',
+        page: 2,
+        limit: 10,
+      });
+    });
+
+    it('returns { data, total, page, limit }', async () => {
+      const rows = [{ id: 'tx-1' }];
+      mockTransactionsService.findMany.mockResolvedValue({ data: rows, total: 1 });
+
+      const result = await controller.findMany(userId, undefined, undefined, undefined, undefined, undefined, 1, 20);
+
+      expect(result).toEqual({ data: rows, total: 1, page: 1, limit: 20 });
+    });
+
+    it('defaults page=1 and limit=20 when not provided', async () => {
+      mockTransactionsService.findMany.mockResolvedValue({ data: [], total: 0 });
+
+      await controller.findMany(userId);
+
+      expect(mockTransactionsService.findMany).toHaveBeenCalledWith(
+        userId,
+        expect.objectContaining({ page: 1, limit: 20 }),
+      );
+    });
   });
 
   describe('PUT /transactions/:id', () => {
