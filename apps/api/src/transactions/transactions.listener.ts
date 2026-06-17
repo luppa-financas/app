@@ -44,11 +44,15 @@ export class TransactionsListener {
         event.invoiceId,
         transactions,
       );
-      await this.invoicesRepository.updateStatus(event.invoiceId, InvoiceStatus.DONE, {
-        billingMonth: new Date(`${billingMonth}-01T00:00:00.000Z`),
-        bank,
-        invoiceTotal,
-      });
+      await this.invoicesRepository.updateStatus(
+        event.invoiceId,
+        InvoiceStatus.DONE,
+        {
+          billingMonth: new Date(`${billingMonth}-01T00:00:00.000Z`),
+          bank,
+          invoiceTotal,
+        },
+      );
     } catch (error) {
       this.logger.error(
         `Failed to process invoice ${event.invoiceId}`,

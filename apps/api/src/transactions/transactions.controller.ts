@@ -19,7 +19,12 @@ export class TransactionsController {
     @Query('q') q?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
-  ): Promise<{ data: Transaction[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    data: Transaction[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const resolvedPage = page ?? 1;
     const resolvedLimit = limit ?? 20;
     const { data, total } = await this.transactionsService.findMany(userId, {

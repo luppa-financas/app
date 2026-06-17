@@ -125,7 +125,10 @@ describe('InvoicesController', () => {
 
       await controller.history('user-1', 3);
 
-      expect(mockInvoicesQueryService.history).toHaveBeenCalledWith('user-1', 3);
+      expect(mockInvoicesQueryService.history).toHaveBeenCalledWith(
+        'user-1',
+        3,
+      );
     });
 
     it('defaults to 6 months when months param is not provided', async () => {
@@ -133,7 +136,10 @@ describe('InvoicesController', () => {
 
       await controller.history('user-1');
 
-      expect(mockInvoicesQueryService.history).toHaveBeenCalledWith('user-1', 6);
+      expect(mockInvoicesQueryService.history).toHaveBeenCalledWith(
+        'user-1',
+        6,
+      );
     });
 
     it('returns the history array from queryService', async () => {

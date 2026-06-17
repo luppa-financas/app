@@ -9,7 +9,12 @@ import { PdfDecryptionService } from './pdf-decryption.service';
 @Module({
   imports: [StorageModule],
   controllers: [InvoicesController],
-  providers: [InvoicesService, InvoicesQueryService, InvoicesRepository, PdfDecryptionService],
+  providers: [
+    InvoicesService,
+    InvoicesQueryService,
+    InvoicesRepository,
+    PdfDecryptionService,
+  ],
   exports: [InvoicesRepository],
 })
 export class InvoicesModule {}
