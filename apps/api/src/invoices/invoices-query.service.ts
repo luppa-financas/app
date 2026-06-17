@@ -8,6 +8,7 @@ export interface InvoiceListItemDto {
   bank: string | null;
   billingMonth: Date | null;
   invoiceTotal: number | null;
+  total: number;
   transactionCount: number;
   createdAt: Date;
 }
@@ -31,16 +32,24 @@ export class InvoicesQueryService {
     filters: { month?: string; bank?: string; status?: string },
   ): Promise<InvoiceListItemDto[]> {
     const rows = await this.invoicesRepository.findAllWithFilters(userId, filters);
-    return rows.map((inv) => ({
-      id: inv.id,
-      filename: inv.filename,
-      status: inv.status,
-      bank: inv.bank ?? null,
-      billingMonth: inv.billingMonth,
-      invoiceTotal: inv.invoiceTotal ? inv.invoiceTotal.toNumber() : null,
-      transactionCount: inv._count.transactions,
-      createdAt: inv.createdAt,
-    }));
+    return rows.map((inv) => {
+      const invoiceTotal = inv.invoiceTotal ? inv.invoiceTotal.toNumber() : null;
+      const transactionSum = inv.transactions.reduce(
+        (sum, t) => sum + t.amount.toNumber(),
+        0,
+      );
+      return {
+        id: inv.id,
+        filename: inv.filename,
+        status: inv.status,
+        bank: inv.bank ?? null,
+        billingMonth: inv.billingMonth,
+        invoiceTotal,
+        total: invoiceTotal ?? transactionSum,
+        transactionCount: inv._count.transactions,
+        createdAt: inv.createdAt,
+      };
+    });
   }
 
   async history(userId: string, months: number): Promise<HistoryItemDto[]> {

@@ -25,7 +25,10 @@ export type InvoiceWithTransactions = Invoice & { transactions: Transaction[] };
 export type InvoiceWithDebits = Invoice & {
   transactions: { amount: Decimal }[];
 };
-export type InvoiceWithCount = Invoice & { _count: { transactions: number } };
+export type InvoiceWithCount = Invoice & {
+  _count: { transactions: number };
+  transactions: { amount: Decimal }[];
+};
 export type InvoiceHistoryRow = {
   billingMonth: Date | null;
   bank: string | null;
@@ -104,7 +107,10 @@ export class InvoicesRepository {
     return this.prisma.invoice.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: { _count: { select: { transactions: true } } },
+      include: {
+        _count: { select: { transactions: true } },
+        transactions: { where: { type: 'DEBIT' }, select: { amount: true } },
+      },
     }) as Promise<InvoiceWithCount[]>;
   }
 
