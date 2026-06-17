@@ -86,7 +86,12 @@ describe('InvoicesRepository', () => {
 
       expect(mockPrisma.invoice.update).toHaveBeenCalledWith({
         where: { id: 'inv-1' },
-        data: { status: 'DONE', billingMonth, bank: 'itau', invoiceTotal: 1234.56 },
+        data: {
+          status: 'DONE',
+          billingMonth,
+          bank: 'itau',
+          invoiceTotal: 1234.56,
+        },
       });
     });
 
@@ -299,9 +304,9 @@ describe('InvoicesRepository', () => {
 
       await repository.findHistory('user-1', 3);
 
-      const callArg = mockPrisma.invoice.findMany.mock.calls[0][0] as {
-        where: { billingMonth: { gte: Date } };
-      };
+      const [callArg] = mockPrisma.invoice.findMany.mock.calls[0] as [
+        { where: { billingMonth: { gte: Date } } },
+      ];
       expect(callArg.where.billingMonth.gte).toBeInstanceOf(Date);
     });
 
@@ -319,8 +324,16 @@ describe('InvoicesRepository', () => {
 
     it('returns the raw result from prisma', async () => {
       const rows = [
-        { billingMonth: new Date('2026-05-01'), bank: 'itau', invoiceTotal: new Decimal('8000') },
-        { billingMonth: new Date('2026-05-01'), bank: 'nubank', invoiceTotal: new Decimal('1200') },
+        {
+          billingMonth: new Date('2026-05-01'),
+          bank: 'itau',
+          invoiceTotal: new Decimal('8000'),
+        },
+        {
+          billingMonth: new Date('2026-05-01'),
+          bank: 'nubank',
+          invoiceTotal: new Decimal('1200'),
+        },
       ];
       mockPrisma.invoice.findMany.mockResolvedValue(rows);
 

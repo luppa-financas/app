@@ -224,7 +224,9 @@ describe('TransactionsRepository', () => {
 
       expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({ category: 'Alimentação' }) as unknown,
+          where: expect.objectContaining({
+            category: 'Alimentação',
+          }) as unknown,
         }),
       );
     });
@@ -241,7 +243,9 @@ describe('TransactionsRepository', () => {
 
       expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({ subcategory: 'Delivery' }) as unknown,
+          where: expect.objectContaining({
+            subcategory: 'Delivery',
+          }) as unknown,
         }),
       );
     });
@@ -300,16 +304,14 @@ describe('TransactionsRepository', () => {
         limit: 10,
       });
 
-      const findManyWhere = (
-        mockPrisma.transaction.findMany.mock.calls[0][0] as {
-          where: unknown;
-        }
-      ).where;
-      const countWhere = (
-        mockPrisma.transaction.count.mock.calls[0][0] as {
-          where: unknown;
-        }
-      ).where;
+      const [findManyCall] = mockPrisma.transaction.findMany.mock.calls[0] as [
+        { where: unknown },
+      ];
+      const findManyWhere = findManyCall.where;
+      const [countCall] = mockPrisma.transaction.count.mock.calls[0] as [
+        { where: unknown },
+      ];
+      const countWhere = countCall.where;
 
       expect(findManyWhere).toEqual(countWhere);
     });
