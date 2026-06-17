@@ -20,7 +20,11 @@ export interface HistoryItemDto {
 
 export interface SummaryDto {
   total: number;
-  byCategory: { category: string | null; subcategory: string | null; amount: number }[];
+  byCategory: {
+    category: string | null;
+    subcategory: string | null;
+    amount: number;
+  }[];
 }
 
 @Injectable()
@@ -31,9 +35,14 @@ export class InvoicesQueryService {
     userId: string,
     filters: { month?: string; bank?: string; status?: string },
   ): Promise<InvoiceListItemDto[]> {
-    const rows = await this.invoicesRepository.findAllWithFilters(userId, filters);
+    const rows = await this.invoicesRepository.findAllWithFilters(
+      userId,
+      filters,
+    );
     return rows.map((inv) => {
-      const invoiceTotal = inv.invoiceTotal ? inv.invoiceTotal.toNumber() : null;
+      const invoiceTotal = inv.invoiceTotal
+        ? inv.invoiceTotal.toNumber()
+        : null;
       const transactionSum = inv.transactions.reduce(
         (sum, t) => sum + t.amount.toNumber(),
         0,
@@ -45,6 +54,7 @@ export class InvoicesQueryService {
         bank: inv.bank ?? null,
         billingMonth: inv.billingMonth,
         invoiceTotal,
+        // invoiceTotal is null for invoices processed before the field was added; fall back to DEBIT sum
         total: invoiceTotal ?? transactionSum,
         transactionCount: inv._count.transactions,
         createdAt: inv.createdAt,
@@ -70,7 +80,10 @@ export class InvoicesQueryService {
   }
 
   async summary(userId: string, month: string): Promise<SummaryDto> {
-    const groups = await this.invoicesRepository.findSummaryByMonth(userId, month);
+    const groups = await this.invoicesRepository.findSummaryByMonth(
+      userId,
+      month,
+    );
 
     const byCategory = groups
       .map((g) => ({

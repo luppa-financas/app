@@ -25,9 +25,8 @@ export type InvoiceWithTransactions = Invoice & { transactions: Transaction[] };
 export type InvoiceWithDebits = Invoice & {
   transactions: { amount: Decimal }[];
 };
-export type InvoiceWithCount = Invoice & {
+export type InvoiceWithCount = InvoiceWithDebits & {
   _count: { transactions: number };
-  transactions: { amount: Decimal }[];
 };
 export type InvoiceHistoryRow = {
   billingMonth: Date | null;
@@ -86,7 +85,8 @@ export class InvoicesRepository {
     const data: Record<string, unknown> = { status };
     if (extra?.billingMonth) data.billingMonth = extra.billingMonth;
     if (extra?.bank) data.bank = extra.bank;
-    if (extra?.invoiceTotal !== undefined) data.invoiceTotal = extra.invoiceTotal;
+    if (extra?.invoiceTotal !== undefined)
+      data.invoiceTotal = extra.invoiceTotal;
     await this.prisma.invoice.update({ where: { id }, data });
   }
 
@@ -114,14 +114,21 @@ export class InvoicesRepository {
     }) as Promise<InvoiceWithCount[]>;
   }
 
-  async findHistory(userId: string, months: number): Promise<InvoiceHistoryRow[]> {
+  async findHistory(
+    userId: string,
+    months: number,
+  ): Promise<InvoiceHistoryRow[]> {
     const since = new Date();
     since.setUTCMonth(since.getUTCMonth() - months);
     since.setUTCDate(1);
     since.setUTCHours(0, 0, 0, 0);
 
     return this.prisma.invoice.findMany({
-      where: { userId, status: InvoiceStatus.DONE, billingMonth: { gte: since } },
+      where: {
+        userId,
+        status: InvoiceStatus.DONE,
+        billingMonth: { gte: since },
+      },
       select: { billingMonth: true, bank: true, invoiceTotal: true },
     }) as Promise<InvoiceHistoryRow[]>;
   }
