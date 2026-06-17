@@ -47,6 +47,7 @@ describe('InvoicesQueryService', () => {
           invoiceTotal: new Decimal('8102.44'),
           createdAt: new Date('2026-05-20T00:00:00.000Z'),
           _count: { transactions: 42 },
+          transactions: [],
         },
       ]);
 
@@ -60,6 +61,7 @@ describe('InvoicesQueryService', () => {
           bank: 'itau',
           billingMonth: new Date('2026-05-01T00:00:00.000Z'),
           invoiceTotal: 8102.44,
+          total: 8102.44,
           transactionCount: 42,
           createdAt: new Date('2026-05-20T00:00:00.000Z'),
         },
@@ -77,6 +79,7 @@ describe('InvoicesQueryService', () => {
           invoiceTotal: null,
           createdAt: new Date('2026-05-20T00:00:00.000Z'),
           _count: { transactions: 0 },
+          transactions: [],
         },
       ]);
 
