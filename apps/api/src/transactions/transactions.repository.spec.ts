@@ -141,6 +141,184 @@ describe('TransactionsRepository', () => {
     });
   });
 
+  describe('findPaginated', () => {
+    it('returns { data, total }', async () => {
+      mockPrisma.transaction.findMany.mockResolvedValue([{ id: 'tx-1' }]);
+      mockPrisma.transaction.count.mockResolvedValue(1);
+
+      const result = await repository.findPaginated('user-1', {
+        page: 1,
+        limit: 20,
+      });
+
+      expect(result).toEqual({ data: [{ id: 'tx-1' }], total: 1 });
+    });
+
+    it('isolates by userId via invoice relation', async () => {
+      mockPrisma.transaction.findMany.mockResolvedValue([]);
+      mockPrisma.transaction.count.mockResolvedValue(0);
+
+      await repository.findPaginated('user-1', { page: 1, limit: 20 });
+
+      expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            invoice: expect.objectContaining({ userId: 'user-1' }) as unknown,
+          }) as unknown,
+        }),
+      );
+    });
+
+    it('applies month as billingMonth date range on invoice', async () => {
+      mockPrisma.transaction.findMany.mockResolvedValue([]);
+      mockPrisma.transaction.count.mockResolvedValue(0);
+
+      await repository.findPaginated('user-1', {
+        month: '2026-05',
+        page: 1,
+        limit: 20,
+      });
+
+      expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            invoice: expect.objectContaining({
+              billingMonth: {
+                gte: new Date('2026-05-01T00:00:00.000Z'),
+                lt: new Date('2026-06-01T00:00:00.000Z'),
+              },
+            }) as unknown,
+          }) as unknown,
+        }),
+      );
+    });
+
+    it('applies bank filter via invoice relation', async () => {
+      mockPrisma.transaction.findMany.mockResolvedValue([]);
+      mockPrisma.transaction.count.mockResolvedValue(0);
+
+      await repository.findPaginated('user-1', {
+        bank: 'nubank',
+        page: 1,
+        limit: 20,
+      });
+
+      expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            invoice: expect.objectContaining({ bank: 'nubank' }) as unknown,
+          }) as unknown,
+        }),
+      );
+    });
+
+    it('applies category filter', async () => {
+      mockPrisma.transaction.findMany.mockResolvedValue([]);
+      mockPrisma.transaction.count.mockResolvedValue(0);
+
+      await repository.findPaginated('user-1', {
+        category: 'Alimentação',
+        page: 1,
+        limit: 20,
+      });
+
+      expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            category: 'Alimentação',
+          }) as unknown,
+        }),
+      );
+    });
+
+    it('applies subcategory filter', async () => {
+      mockPrisma.transaction.findMany.mockResolvedValue([]);
+      mockPrisma.transaction.count.mockResolvedValue(0);
+
+      await repository.findPaginated('user-1', {
+        subcategory: 'Delivery',
+        page: 1,
+        limit: 20,
+      });
+
+      expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            subcategory: 'Delivery',
+          }) as unknown,
+        }),
+      );
+    });
+
+    it('applies text search q on description and alias with case-insensitive OR', async () => {
+      mockPrisma.transaction.findMany.mockResolvedValue([]);
+      mockPrisma.transaction.count.mockResolvedValue(0);
+
+      await repository.findPaginated('user-1', {
+        q: 'uber',
+        page: 1,
+        limit: 20,
+      });
+
+      expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [
+              { description: { contains: 'uber', mode: 'insensitive' } },
+              { alias: { contains: 'uber', mode: 'insensitive' } },
+            ],
+          }) as unknown,
+        }),
+      );
+    });
+
+    it('paginates with skip=(page-1)*limit and take=limit', async () => {
+      mockPrisma.transaction.findMany.mockResolvedValue([]);
+      mockPrisma.transaction.count.mockResolvedValue(0);
+
+      await repository.findPaginated('user-1', { page: 3, limit: 10 });
+
+      expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 20, take: 10 }),
+      );
+    });
+
+    it('orders by date descending', async () => {
+      mockPrisma.transaction.findMany.mockResolvedValue([]);
+      mockPrisma.transaction.count.mockResolvedValue(0);
+
+      await repository.findPaginated('user-1', { page: 1, limit: 20 });
+
+      expect(mockPrisma.transaction.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { date: 'desc' } }),
+      );
+    });
+
+    it('uses the same where clause for both findMany and count', async () => {
+      mockPrisma.transaction.findMany.mockResolvedValue([]);
+      mockPrisma.transaction.count.mockResolvedValue(5);
+
+      await repository.findPaginated('user-1', {
+        category: 'Transporte',
+        page: 2,
+        limit: 10,
+      });
+
+      const findManyCalls = mockPrisma.transaction.findMany.mock.calls as Array<
+        [{ where: unknown }]
+      >;
+      const [findManyCall] = findManyCalls[0];
+      const findManyWhere = findManyCall.where;
+      const countCalls = mockPrisma.transaction.count.mock.calls as Array<
+        [{ where: unknown }]
+      >;
+      const [countCall] = countCalls[0];
+      const countWhere = countCall.where;
+
+      expect(findManyWhere).toEqual(countWhere);
+    });
+  });
+
   describe('updateManyByUserAndDescription', () => {
     it('should update category and subcategory of all matching transactions', async () => {
       mockPrisma.transaction.updateMany.mockResolvedValue({ count: 15 });

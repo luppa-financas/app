@@ -2,6 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { Prisma, Transaction, TransactionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
+export interface FindPaginatedFilters {
+  month?: string;
+  bank?: string;
+  category?: string;
+  subcategory?: string;
+  q?: string;
+  page: number;
+  limit: number;
+}
+
 export interface TransactionCreateData {
   date: string;
   description: string;
@@ -61,6 +71,42 @@ export class TransactionsRepository {
     },
   ): Promise<Transaction> {
     return this.prisma.transaction.update({ where: { id }, data });
+  }
+
+  async findPaginated(
+    userId: string,
+    filters: FindPaginatedFilters,
+  ): Promise<{ data: Transaction[]; total: number }> {
+    const invoiceWhere: Record<string, unknown> = { userId };
+    if (filters.month) {
+      const start = new Date(`${filters.month}-01T00:00:00.000Z`);
+      const end = new Date(start);
+      end.setUTCMonth(end.getUTCMonth() + 1);
+      invoiceWhere.billingMonth = { gte: start, lt: end };
+    }
+    if (filters.bank) invoiceWhere.bank = filters.bank;
+
+    const where: Record<string, unknown> = { invoice: invoiceWhere };
+    if (filters.category) where.category = filters.category;
+    if (filters.subcategory) where.subcategory = filters.subcategory;
+    if (filters.q) {
+      where.OR = [
+        { description: { contains: filters.q, mode: 'insensitive' } },
+        { alias: { contains: filters.q, mode: 'insensitive' } },
+      ];
+    }
+
+    const skip = (filters.page - 1) * filters.limit;
+    const [data, total] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where,
+        skip,
+        take: filters.limit,
+        orderBy: { date: 'desc' },
+      }),
+      this.prisma.transaction.count({ where }),
+    ]);
+    return { data, total };
   }
 
   async countByUserAndDescription(

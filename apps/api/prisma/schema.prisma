@@ -23,7 +23,9 @@ model Invoice {
   filename     String
   storagePath  String
   status       InvoiceStatus @default(PENDING)
+  bank         String?
   billingMonth DateTime?
+  invoiceTotal Decimal?      @db.Decimal(10, 2)
   createdAt    DateTime      @default(now())
   transactions Transaction[]
 }

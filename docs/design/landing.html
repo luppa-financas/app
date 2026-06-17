@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>luppa — entenda seus gastos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; margin: 0; }
+    .mono { font-family: 'DM Mono', monospace; }
+
+    /* Nav */
+    #navbar { transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease; }
+    #navbar.scrolled {
+      background: rgba(255,255,255,0.97);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid #E2E8F0;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .nav-brand { color: #818CF8; transition: color 0.3s; }
+    #navbar.scrolled .nav-brand { color: #4F46E5; }
+    .nav-link { color: rgba(255,255,255,0.65); transition: color 0.2s; }
+    .nav-link:hover { color: white; }
+    #navbar.scrolled .nav-link { color: #64748B; }
+    #navbar.scrolled .nav-link:hover { color: #0F172A; }
+
+    /* Animations */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(22px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes floatY {
+      0%, 100% { transform: translateY(0px); }
+      50%       { transform: translateY(-10px); }
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    .h1  { opacity: 0; animation: fadeUp 0.7s 0.05s ease forwards; }
+    .h2  { opacity: 0; animation: fadeUp 0.7s 0.2s  ease forwards; }
+    .h3  { opacity: 0; animation: fadeUp 0.7s 0.35s ease forwards; }
+    .h4  { opacity: 0; animation: fadeUp 0.7s 0.5s  ease forwards; }
+    .hp  { opacity: 0; animation: fadeUp 0.8s 0.25s ease forwards; }
+    .float-anim { animation: floatY 5.5s 1s ease-in-out infinite; }
+
+    /* Scroll-triggered reveals */
+    .reveal {
+      opacity: 0;
+      transform: translateY(26px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .reveal.in { opacity: 1; transform: none; }
+    .r1 { transition-delay: 0.05s; }
+    .r2 { transition-delay: 0.15s; }
+    .r3 { transition-delay: 0.25s; }
+
+    /* Gradient text */
+    .gtext {
+      background: linear-gradient(135deg, #A5B4FC 0%, #C084FC 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Bank left borders */
+    .b-itau     { border-left-color: #FF6B00 !important; }
+    .b-nubank   { border-left-color: #820AD1 !important; }
+    .b-bradesco { border-left-color: #CC0000 !important; }
+
+    /* Status */
+    .s-done     { background: #DCFCE7; color: #166534; }
+    .s-process  { background: #FEF9C3; color: #854D0E; }
+    .s-review   { background: #FEF3C7; color: #92400E; }
+    .s-failed   { background: #FEE2E2; color: #991B1B; }
+
+    /* Hero background glow */
+    .glow {
+      position: absolute;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(99,102,241,0.16) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    /* Dot indicator */
+    .dot-pulse { animation: pulseDot 1.6s ease-in-out infinite; }
+
+    /* Smooth scroll */
+    html { scroll-behavior: smooth; }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+
+    /* Category pill */
+    .cat { font-size: 10px; background: #F1F5F9; color: #64748B; border-radius: 999px; padding: 2px 8px; white-space: nowrap; }
+
+    /* Steps connector line */
+    .step-line {
+      position: absolute;
+      top: 20px;
+      left: calc(50% + 28px);
+      right: calc(-50% + 28px);
+      height: 1px;
+      background: #E2E8F0;
+    }
+
+    /* Feature tab */
+    .feat-tab { border-bottom: 2px solid transparent; color: #94A3B8; transition: all 0.15s; cursor: pointer; }
+    .feat-tab:hover { color: #475569; }
+    .feat-tab.active { border-bottom-color: #4F46E5; color: #4F46E5; font-weight: 600; }
+
+    /* Hover card effect */
+    .card-hover { transition: box-shadow 0.2s, transform 0.2s; }
+    .card-hover:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.08); transform: translateY(-2px); }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body class="bg-white text-slate-900">
+
+  <!-- ── Navbar ───────────────────────────────────────────────── -->
+  <nav id="navbar" class="fixed top-0 inset-x-0 z-50 h-16">
+    <div class="max-w-6xl mx-auto px-5 h-full flex items-center justify-between">
+      <span class="nav-brand text-lg font-semibold tracking-tight">luppa</span>
+      <div class="flex items-center gap-2">
+        <a href="#" class="nav-link text-sm font-medium px-4 py-2 rounded-lg hidden sm:block">Entrar</a>
+        <a href="#" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl px-4 py-2.5 transition-colors">
+          Começar grátis
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Hero ─────────────────────────────────────────────────── -->
+  <section class="relative bg-slate-900 min-h-screen flex items-center overflow-hidden" style="padding-top: 4rem;">
+    <div class="glow" style="width:700px;height:700px;top:-200px;left:-150px;"></div>
+    <div class="glow" style="width:500px;height:500px;bottom:-150px;right:-50px;"></div>
+
+    <div class="relative z-10 max-w-6xl mx-auto px-5 py-16 sm:py-24 w-full">
+      <div class="lg:grid lg:grid-cols-[1fr_480px] lg:gap-14 items-center">
+
+        <!-- Left: copy -->
+        <div class="mb-14 lg:mb-0">
+          <p class="h1 text-[11px] font-semibold text-indigo-400 tracking-[0.18em] uppercase mb-5">
+            Controle financeiro pessoal
+          </p>
+          <h1 class="h2 text-[2.6rem] sm:text-5xl font-bold text-white leading-[1.12] tracking-tight mb-6">
+            Entenda pra onde<br/>
+            foi o seu <span class="gtext">dinheiro.</span>
+          </h1>
+          <p class="h3 text-slate-400 text-lg leading-relaxed mb-10 max-w-lg">
+            Suba o PDF da sua fatura e a IA extrai cada transação automaticamente.
+            Um painel que consolida todos os seus cartões em um lugar só.
+          </p>
+          <div class="h4 flex flex-col sm:flex-row gap-3">
+            <a href="#" class="inline-flex justify-center items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl px-6 py-3.5 transition-colors text-sm">
+              Começar grátis
+            </a>
+            <a href="#como-funciona" class="inline-flex justify-center items-center gap-2 text-slate-400 hover:text-slate-200 font-medium px-4 py-3.5 transition-colors text-sm">
+              Como funciona
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- Right: mini app preview -->
+        <div class="hp float-anim" style="max-width: 480px; margin: 0 auto;">
+          <div class="rounded-2xl overflow-hidden border border-slate-700 shadow-2xl" style="box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);">
+            <!-- Browser chrome -->
+            <div class="h-9 bg-slate-800 border-b border-slate-700 flex items-center px-4 gap-3">
+              <div class="flex gap-1.5 flex-shrink-0">
+                <span class="w-2.5 h-2.5 rounded-full bg-red-500/50"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-green-500/50"></span>
+              </div>
+              <div class="flex-1 bg-slate-700/60 rounded-md h-[22px] flex items-center px-3">
+                <span class="text-[10px] text-slate-500 tracking-tight">luppin.app/dashboard</span>
+              </div>
+            </div>
+
+            <!-- App header -->
+            <div class="bg-white border-b border-slate-200 h-11 flex items-center px-4 gap-5">
+              <span class="text-sm font-semibold text-indigo-600 tracking-tight flex-shrink-0">luppa</span>
+              <div class="flex gap-5">
+                <span class="text-[11px] font-medium text-indigo-600 border-b-2 border-indigo-500 pb-2 leading-none mt-2">Dashboard</span>
+                <span class="text-[11px] text-slate-400 pb-2 leading-none mt-2">Transações</span>
+                <span class="text-[11px] text-slate-400 pb-2 leading-none mt-2">Faturas</span>
+              </div>
+            </div>
+
+            <!-- Dashboard body -->
+            <div class="bg-slate-50 p-4">
+              <!-- Header -->
+              <div class="mb-4">
+                <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-0.5">Maio 2026</p>
+                <div class="flex items-baseline gap-2.5 flex-wrap">
+                  <span class="mono text-[1.6rem] font-medium text-slate-900">R$ 13.232,12</span>
+                  <span class="inline-flex items-center text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                    ↑ 7,6% vs. abril
+                  </span>
+                </div>
+              </div>
+
+              <!-- Bank cards -->
+              <div class="space-y-2 mb-3">
+                <div class="bg-white rounded-xl border border-slate-200 border-l-4 b-itau px-3 py-2.5 flex items-center justify-between group cursor-default hover:shadow-sm transition-shadow">
+                  <div>
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                      <span class="w-1.5 h-1.5 rounded-full bg-[#FF6B00] flex-shrink-0"></span>
+                      <span class="text-[10px] text-slate-400">Itaú · 42 transações</span>
+                    </div>
+                    <p class="mono text-sm font-medium text-slate-800">R$ 8.102,44</p>
+                  </div>
+                  <svg class="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                  </svg>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 border-l-4 b-nubank px-3 py-2.5 flex items-center justify-between group cursor-default hover:shadow-sm transition-shadow">
+                  <div>
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                      <span class="w-1.5 h-1.5 rounded-full bg-[#820AD1] flex-shrink-0"></span>
+                      <span class="text-[10px] text-slate-400">Nubank · 18 transações</span>
+                    </div>
+                    <p class="mono text-sm font-medium text-slate-800">R$ 1.138,35</p>
+                  </div>
+                  <svg class="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                  </svg>
+                </div>
+                <div class="bg-white rounded-xl border border-slate-200 border-l-4 b-bradesco px-3 py-2.5 flex items-center justify-between group cursor-default hover:shadow-sm transition-shadow">
+                  <div>
+                    <div class="flex items-center gap-1.5 mb-0.5">
+                      <span class="w-1.5 h-1.5 rounded-full bg-[#CC0000] flex-shrink-0"></span>
+                      <span class="text-[10px] text-slate-400">Bradesco · 31 transações</span>
+                    </div>
+                    <p class="mono text-sm font-medium text-slate-800">R$ 3.992,33</p>
+                  </div>
+                  <svg class="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                  </svg>
+                </div>
+              </div>
+
+              <!-- Category breakdown -->
+              <div class="bg-white rounded-xl border border-slate-200 p-3">
+                <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Por categoria — maio</p>
+                <div class="space-y-2.5">
+                  <div>
+                    <div class="flex justify-between items-center mb-1">
+                      <span class="text-[11px] text-slate-600">Alimentação</span>
+                      <span class="mono text-[10px] text-slate-400">R$ 3.200</span>
+                    </div>
+                    <div class="h-1 bg-slate-100 rounded-full">
+                      <div class="h-full bg-indigo-400 rounded-full" style="width:80%"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="flex justify-between items-center mb-1">
+                      <span class="text-[11px] text-slate-600">Moradia</span>
+                      <span class="mono text-[10px] text-slate-400">R$ 2.800</span>
+                    </div>
+                    <div class="h-1 bg-slate-100 rounded-full">
+                      <div class="h-full bg-violet-400 rounded-full" style="width:70%"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="flex justify-between items-center mb-1">
+                      <span class="text-[11px] text-slate-600">Compras</span>
+                      <span class="mono text-[10px] text-slate-400">R$ 1.800</span>
+                    </div>
+                    <div class="h-1 bg-slate-100 rounded-full">
+                      <div class="h-full bg-pink-400 rounded-full" style="width:45%"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="flex justify-between items-center mb-1">
+                      <span class="text-[11px] text-slate-600 flex items-center gap-1.5">
+                        Assinaturas
+                        <span class="text-[9px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">+50%</span>
+                      </span>
+                      <span class="mono text-[10px] text-amber-600 font-medium">R$ 750</span>
+                    </div>
+                    <div class="h-1 bg-amber-100 rounded-full">
+                      <div class="h-full bg-amber-400 rounded-full" style="width:100%"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Stats band ────────────────────────────────────────────── -->
+  <section class="border-y border-slate-100 py-10 bg-white">
+    <div class="max-w-4xl mx-auto px-5 grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 reveal">
+      <div class="text-center py-6 sm:py-0">
+        <p class="mono text-3xl font-medium text-slate-900 mb-1">91</p>
+        <p class="text-sm text-slate-500">transações extraídas por mês</p>
+      </div>
+      <div class="text-center py-6 sm:py-0">
+        <p class="mono text-3xl font-medium text-slate-900 mb-1">3</p>
+        <p class="text-sm text-slate-500">bancos consolidados em um painel</p>
+      </div>
+      <div class="text-center py-6 sm:py-0">
+        <p class="mono text-3xl font-medium text-slate-900 mb-1">0 min</p>
+        <p class="text-sm text-slate-500">de digitação manual</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Como funciona ─────────────────────────────────────────── -->
+  <section id="como-funciona" class="py-24 bg-white">
+    <div class="max-w-5xl mx-auto px-5">
+      <div class="text-center mb-16 reveal">
+        <p class="text-[11px] font-semibold text-indigo-500 tracking-[0.18em] uppercase mb-3">Como funciona</p>
+        <h2 class="text-3xl sm:text-4xl font-bold text-slate-900 mb-4 tracking-tight">Três passos. Sem complicação.</h2>
+        <p class="text-slate-500 text-lg max-w-md mx-auto">
+          Você não precisa de planilha, de configuração ou de nenhuma senha de banco.
+        </p>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-8">
+        <!-- Step 1 -->
+        <div class="reveal r1 relative">
+          <div class="hidden md:block step-line"></div>
+          <div class="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-slate-900 mb-2">Suba o PDF da fatura</h3>
+          <p class="text-slate-500 leading-relaxed text-sm mb-5">
+            Exporte a fatura pelo app do banco e arraste aqui. Funciona com qualquer banco brasileiro — Itaú, Nubank, Bradesco e mais.
+          </p>
+          <!-- Mini drop zone -->
+          <div class="border-2 border-dashed border-slate-200 rounded-xl p-5 text-center bg-slate-50/50">
+            <div class="w-10 h-10 bg-white rounded-xl border border-slate-200 flex items-center justify-center mx-auto mb-2.5 shadow-sm">
+              <svg class="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM14 2v6h6"/>
+              </svg>
+            </div>
+            <p class="text-xs font-medium text-slate-600 mb-0.5">fatura_maio_itau.pdf</p>
+            <p class="text-[10px] text-slate-400">Arraste ou clique para selecionar</p>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="reveal r2 relative">
+          <div class="hidden md:block step-line"></div>
+          <div class="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-slate-900 mb-2">A IA lê e extrai tudo</h3>
+          <p class="text-slate-500 leading-relaxed text-sm mb-5">
+            Claude lê o PDF e extrai cada transação com data, valor e comerciante. Sem parsers, sem regras manuais, sem erros de leitura.
+          </p>
+          <!-- Mini processing log -->
+          <div class="bg-slate-50 rounded-xl p-4 space-y-2.5">
+            <div class="flex items-center gap-2.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"></span>
+              <span class="text-xs text-slate-600">Lendo fatura…</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"></span>
+              <span class="text-xs text-slate-600">Banco identificado: Itaú</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0"></span>
+              <span class="text-xs text-slate-600">42 transações extraídas</span>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0 dot-pulse"></span>
+              <span class="text-xs font-semibold text-emerald-600">Categorias definidas — pronto</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="reveal r3">
+          <div class="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center mb-5">
+            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+          </div>
+          <h3 class="text-lg font-semibold text-slate-900 mb-2">Você visualiza tudo</h3>
+          <p class="text-slate-500 leading-relaxed text-sm mb-5">
+            Dashboard com gráficos, filtros por categoria e comparação mês a mês. Em segundos você entende onde está gastando.
+          </p>
+          <!-- Mini bar chart -->
+          <div class="bg-slate-50 rounded-xl p-4">
+            <div class="flex items-end gap-1.5 h-12 mb-2">
+              <div class="flex-1 rounded-t-sm" style="height:55%;background:#A5B4FC"></div>
+              <div class="flex-1 rounded-t-sm" style="height:72%;background:#818CF8"></div>
+              <div class="flex-1 rounded-t-sm" style="height:48%;background:#A5B4FC"></div>
+              <div class="flex-1 rounded-t-sm" style="height:80%;background:#818CF8"></div>
+              <div class="flex-1 rounded-t-sm" style="height:65%;background:#A5B4FC"></div>
+              <div class="flex-1 rounded-t-sm" style="height:92%;background:#4F46E5"></div>
+            </div>
+            <div class="flex justify-between text-[9px] text-slate-400">
+              <span>Dez</span><span>Jan</span><span>Fev</span><span>Mar</span><span>Abr</span><span class="text-indigo-500 font-medium">Mai</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Feature: Transações ───────────────────────────────────── -->
+  <section class="py-24 bg-slate-50">
+    <div class="max-w-5xl mx-auto px-5">
+      <div class="grid lg:grid-cols-2 gap-12 items-center">
+        <!-- Copy -->
+        <div class="reveal">
+          <p class="text-[11px] font-semibold text-indigo-500 tracking-[0.18em] uppercase mb-3">Transações</p>
+          <h2 class="text-3xl font-bold text-slate-900 mb-4 tracking-tight">Cada centavo, no lugar certo.</h2>
+          <p class="text-slate-500 text-lg leading-relaxed mb-6">
+            Todas as transações de todos os seus cartões em uma lista filtrável. Sem planilha, sem digitação, sem dor de cabeça.
+          </p>
+          <ul class="space-y-3">
+            <li class="flex items-center gap-3 text-slate-600 text-sm">
+              <span class="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg class="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </span>
+              Categorização automática por IA
+            </li>
+            <li class="flex items-center gap-3 text-slate-600 text-sm">
+              <span class="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg class="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </span>
+              Filtros por banco, categoria e mês
+            </li>
+            <li class="flex items-center gap-3 text-slate-600 text-sm">
+              <span class="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg class="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </span>
+              Busca global em todas as faturas
+            </li>
+            <li class="flex items-center gap-3 text-slate-600 text-sm">
+              <span class="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg class="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </span>
+              Subcategorias automáticas por comerciante
+            </li>
+          </ul>
+        </div>
+
+        <!-- Transaction list mockup -->
+        <div class="reveal card-hover bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-md">
+          <!-- Filters -->
+          <div class="border-b border-slate-100 p-3 flex gap-2">
+            <div class="flex items-center gap-2 bg-slate-50 rounded-lg px-3 h-8 flex-1">
+              <svg class="w-3.5 h-3.5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+              </svg>
+              <span class="text-xs text-slate-400">Buscar transação…</span>
+            </div>
+            <div class="bg-slate-50 rounded-lg px-3 h-8 flex items-center border border-slate-200">
+              <span class="text-xs text-slate-500">Mai 2026</span>
+            </div>
+          </div>
+          <!-- Table header -->
+          <div class="grid items-center px-4 py-2.5 border-b border-slate-100 bg-slate-50/50 text-[10px] font-semibold text-slate-400 uppercase tracking-widest" style="grid-template-columns: 56px 1fr 90px">
+            <span>Data</span>
+            <span>Descrição</span>
+            <span class="text-right">Valor</span>
+          </div>
+          <!-- Rows -->
+          <div class="divide-y divide-slate-50">
+            <div class="grid items-center px-4 py-3 hover:bg-slate-50 transition-colors" style="grid-template-columns: 56px 1fr 90px">
+              <span class="mono text-xs text-slate-400">28/05</span>
+              <div>
+                <p class="text-sm text-slate-800 truncate">UBER *TRIP</p>
+                <span class="cat">Transporte</span>
+              </div>
+              <span class="mono text-sm text-slate-700 text-right">R$ 42,00</span>
+            </div>
+            <div class="grid items-center px-4 py-3 hover:bg-slate-50 transition-colors" style="grid-template-columns: 56px 1fr 90px">
+              <span class="mono text-xs text-slate-400">28/05</span>
+              <div>
+                <p class="text-sm text-slate-800 truncate">RAPPI</p>
+                <span class="cat">Alimentação</span>
+              </div>
+              <span class="mono text-sm text-slate-700 text-right">R$ 89,50</span>
+            </div>
+            <div class="grid items-center px-4 py-3 hover:bg-slate-50 transition-colors" style="grid-template-columns: 56px 1fr 90px">
+              <span class="mono text-xs text-slate-400">27/05</span>
+              <div>
+                <p class="text-sm text-slate-800 truncate">NETFLIX</p>
+                <span class="cat">Assinaturas</span>
+              </div>
+              <span class="mono text-sm text-slate-700 text-right">R$ 55,90</span>
+            </div>
+            <div class="grid items-center px-4 py-3 hover:bg-slate-50 transition-colors" style="grid-template-columns: 56px 1fr 90px">
+              <span class="mono text-xs text-slate-400">26/05</span>
+              <div>
+                <p class="text-sm text-slate-800 truncate">SMART FIT</p>
+                <span class="cat">Saúde</span>
+              </div>
+              <span class="mono text-sm text-slate-700 text-right">R$ 99,90</span>
+            </div>
+            <div class="grid items-center px-4 py-3 hover:bg-slate-50 transition-colors" style="grid-template-columns: 56px 1fr 90px">
+              <span class="mono text-xs text-slate-400">24/05</span>
+              <div>
+                <p class="text-sm text-slate-800 truncate">CONDOMÍNIO</p>
+                <span class="cat">Moradia</span>
+              </div>
+              <span class="mono text-sm text-slate-700 text-right">R$ 1.200,00</span>
+            </div>
+            <div class="grid items-center px-4 py-3 hover:bg-slate-50 transition-colors" style="grid-template-columns: 56px 1fr 90px">
+              <span class="mono text-xs text-slate-400">22/05</span>
+              <div>
+                <p class="text-sm text-slate-800 truncate">SHOPEE</p>
+                <span class="cat">Compras</span>
+              </div>
+              <span class="mono text-sm text-slate-700 text-right">R$ 215,00</span>
+            </div>
+          </div>
+          <!-- Footer -->
+          <div class="px-4 py-3 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <span class="text-xs text-slate-400">91 transações · Total: R$ 13.232,12</span>
+            <div class="flex gap-1 text-xs text-slate-500">
+              <span>←</span>
+              <span class="text-slate-400 px-1">1 / 7</span>
+              <span>→</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Feature: Analytics ────────────────────────────────────── -->
+  <section class="py-24 bg-white">
+    <div class="max-w-5xl mx-auto px-5">
+      <div class="grid lg:grid-cols-2 gap-12 items-center">
+        <!-- Chart mockup -->
+        <div class="reveal card-hover bg-white rounded-2xl border border-slate-200 p-5 shadow-md order-2 lg:order-1">
+          <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">Histórico — últimos 6 meses</p>
+          <div class="flex items-center gap-4 mb-4">
+            <span class="flex items-center gap-1.5 text-xs text-slate-500">
+              <span class="w-2 h-2 rounded-sm bg-[#FF6B00] inline-block"></span>Itaú
+            </span>
+            <span class="flex items-center gap-1.5 text-xs text-slate-500">
+              <span class="w-2 h-2 rounded-sm bg-[#820AD1] inline-block"></span>Nubank
+            </span>
+            <span class="flex items-center gap-1.5 text-xs text-slate-500">
+              <span class="w-2 h-2 rounded-sm bg-[#CC0000] inline-block"></span>Bradesco
+            </span>
+          </div>
+          <canvas id="landingBarChart" height="180"></canvas>
+        </div>
+
+        <!-- Copy -->
+        <div class="reveal order-1 lg:order-2">
+          <p class="text-[11px] font-semibold text-indigo-500 tracking-[0.18em] uppercase mb-3">Análise histórica</p>
+          <h2 class="text-3xl font-bold text-slate-900 mb-4 tracking-tight">Veja a evolução mês a mês.</h2>
+          <p class="text-slate-500 text-lg leading-relaxed mb-6">
+            Gráficos que mostram como os seus gastos evoluíram ao longo dos meses, por banco e por categoria. Você vê o padrão antes que ele vire problema.
+          </p>
+          <ul class="space-y-3">
+            <li class="flex items-center gap-3 text-slate-600 text-sm">
+              <span class="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg class="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </span>
+              Histórico consolidado por banco
+            </li>
+            <li class="flex items-center gap-3 text-slate-600 text-sm">
+              <span class="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg class="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </span>
+              Comparativo % em relação ao mês anterior
+            </li>
+            <li class="flex items-center gap-3 text-slate-600 text-sm">
+              <span class="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg class="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </span>
+              Breakdown por subcategoria com drill-down
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Feature: Metas ────────────────────────────────────────── -->
+  <section class="py-24 bg-slate-50">
+    <div class="max-w-5xl mx-auto px-5">
+      <div class="grid lg:grid-cols-2 gap-12 items-center">
+        <!-- Copy -->
+        <div class="reveal">
+          <p class="text-[11px] font-semibold text-indigo-500 tracking-[0.18em] uppercase mb-3">Metas e alertas</p>
+          <h2 class="text-3xl font-bold text-slate-900 mb-4 tracking-tight">Saiba antes de gastar demais.</h2>
+          <p class="text-slate-500 text-lg leading-relaxed mb-6">
+            Configure limites por categoria e acompanhe o progresso em tempo real. Quando uma meta é ultrapassada, você sabe imediatamente.
+          </p>
+          <ul class="space-y-3">
+            <li class="flex items-center gap-3 text-slate-600 text-sm">
+              <span class="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg class="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </span>
+              Metas configuráveis por categoria
+            </li>
+            <li class="flex items-center gap-3 text-slate-600 text-sm">
+              <span class="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg class="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </span>
+              Alertas visuais quando o limite é excedido
+            </li>
+            <li class="flex items-center gap-3 text-slate-600 text-sm">
+              <span class="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg class="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </span>
+              Comparação percentual mês a mês
+            </li>
+          </ul>
+        </div>
+
+        <!-- Goals mockup -->
+        <div class="reveal card-hover bg-white rounded-2xl border border-slate-200 p-5 shadow-md">
+          <div class="flex items-center justify-between mb-5">
+            <p class="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Metas — Maio 2026</p>
+            <button class="text-xs text-indigo-500 hover:text-indigo-700 transition-colors">Configurar →</button>
+          </div>
+          <div class="space-y-5">
+            <div>
+              <div class="flex justify-between text-sm mb-1.5">
+                <span class="text-slate-700">Alimentação</span>
+                <span class="mono text-xs text-slate-500">R$ 3.200 / 4.000</span>
+              </div>
+              <div class="h-1.5 bg-slate-100 rounded-full">
+                <div class="h-full bg-emerald-400 rounded-full" style="width:80%"></div>
+              </div>
+              <p class="text-[10px] text-emerald-600 mt-1">80% utilizado — dentro da meta</p>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm mb-1.5">
+                <span class="text-slate-700">Moradia</span>
+                <span class="mono text-xs text-slate-500">R$ 2.800 / 3.000</span>
+              </div>
+              <div class="h-1.5 bg-slate-100 rounded-full">
+                <div class="h-full bg-emerald-400 rounded-full" style="width:93%"></div>
+              </div>
+              <p class="text-[10px] text-slate-500 mt-1">93% utilizado — atenção</p>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm mb-1.5">
+                <span class="text-slate-700">Transporte</span>
+                <span class="mono text-xs text-slate-500">R$ 1.100 / 1.500</span>
+              </div>
+              <div class="h-1.5 bg-slate-100 rounded-full">
+                <div class="h-full bg-emerald-400 rounded-full" style="width:73%"></div>
+              </div>
+              <p class="text-[10px] text-emerald-600 mt-1">73% utilizado — dentro da meta</p>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm mb-1.5">
+                <span class="text-slate-700 flex items-center gap-1.5">
+                  Assinaturas
+                  <span class="text-[9px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">+50%</span>
+                </span>
+                <span class="mono text-xs text-amber-600 font-medium">R$ 750 / 500</span>
+              </div>
+              <div class="h-1.5 bg-amber-100 rounded-full">
+                <div class="h-full bg-amber-500 rounded-full" style="width:100%"></div>
+              </div>
+              <p class="text-[10px] text-amber-600 mt-1">Meta excedida em R$ 250</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Feature: Faturas ──────────────────────────────────────── -->
+  <section class="py-24 bg-white">
+    <div class="max-w-5xl mx-auto px-5">
+      <div class="grid lg:grid-cols-2 gap-12 items-center">
+        <!-- Invoice list mockup -->
+        <div class="reveal order-2 lg:order-1">
+          <div class="space-y-2.5">
+            <div class="card-hover bg-white rounded-xl border border-slate-200 border-l-4 b-itau flex items-center justify-between px-4 py-3.5 shadow-sm">
+              <div>
+                <p class="text-sm font-medium text-slate-800">Itaú</p>
+                <p class="text-xs text-slate-400">Maio 2026 · 42 transações</p>
+              </div>
+              <div class="flex items-center gap-3 flex-shrink-0">
+                <span class="s-done text-xs font-semibold px-2.5 py-1 rounded-full">Processada</span>
+                <p class="mono text-sm text-slate-700">R$ 8.102,44</p>
+              </div>
+            </div>
+            <div class="card-hover bg-white rounded-xl border border-slate-200 border-l-4 b-nubank flex items-center justify-between px-4 py-3.5 shadow-sm">
+              <div>
+                <p class="text-sm font-medium text-slate-800">Nubank</p>
+                <p class="text-xs text-slate-400">Maio 2026 · 18 transações</p>
+              </div>
+              <div class="flex items-center gap-3 flex-shrink-0">
+                <span class="s-done text-xs font-semibold px-2.5 py-1 rounded-full">Processada</span>
+                <p class="mono text-sm text-slate-700">R$ 1.138,35</p>
+              </div>
+            </div>
+            <div class="card-hover bg-white rounded-xl border border-slate-200 border-l-4 b-bradesco flex items-center justify-between px-4 py-3.5 shadow-sm">
+              <div>
+                <p class="text-sm font-medium text-slate-800">Bradesco</p>
+                <p class="text-xs text-slate-400">Maio 2026 · 31 transações</p>
+              </div>
+              <div class="flex items-center gap-3 flex-shrink-0">
+                <span class="s-review text-xs font-semibold px-2.5 py-1 rounded-full">Revisar</span>
+                <p class="mono text-sm text-slate-700">R$ 3.992,33</p>
+              </div>
+            </div>
+            <div class="card-hover bg-white rounded-xl border border-slate-200 border-l-4 b-itau flex items-center justify-between px-4 py-3.5 shadow-sm">
+              <div>
+                <p class="text-sm font-medium text-slate-800">Itaú</p>
+                <p class="text-xs text-slate-400">Abril 2026</p>
+              </div>
+              <div class="flex items-center gap-3 flex-shrink-0">
+                <span class="s-process text-xs font-semibold px-2.5 py-1 rounded-full">Processando…</span>
+                <p class="mono text-sm text-slate-400">—</p>
+              </div>
+            </div>
+            <div class="card-hover bg-white rounded-xl border border-slate-200 border-l-4 border-l-slate-300 flex items-center justify-between px-4 py-3.5 shadow-sm">
+              <div>
+                <p class="text-sm font-medium text-slate-800">Bradesco</p>
+                <p class="text-xs text-slate-400">Março 2026 · 28 transações</p>
+              </div>
+              <div class="flex items-center gap-3 flex-shrink-0">
+                <span class="s-failed text-xs font-semibold px-2.5 py-1 rounded-full">Falhou</span>
+                <button class="text-xs text-indigo-500 hover:text-indigo-700 font-medium">Tentar novamente</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Copy -->
+        <div class="reveal order-1 lg:order-2">
+          <p class="text-[11px] font-semibold text-indigo-500 tracking-[0.18em] uppercase mb-3">Gestão de faturas</p>
+          <h2 class="text-3xl font-bold text-slate-900 mb-4 tracking-tight">Todos os bancos. Um lugar só.</h2>
+          <p class="text-slate-500 text-lg leading-relaxed mb-6">
+            Suba faturas de qualquer banco e acompanhe o histórico de importações. O luppa rastreia cada fatura e avisa quando algo precisa de atenção.
+          </p>
+          <ul class="space-y-3">
+            <li class="flex items-center gap-3 text-slate-600 text-sm">
+              <span class="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg class="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </span>
+              Funciona com Itaú, Nubank, Bradesco e mais
+            </li>
+            <li class="flex items-center gap-3 text-slate-600 text-sm">
+              <span class="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg class="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </span>
+              Status em tempo real do processamento
+            </li>
+            <li class="flex items-center gap-3 text-slate-600 text-sm">
+              <span class="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg class="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </span>
+              Detecta senhas de PDF automaticamente
+            </li>
+            <li class="flex items-center gap-3 text-slate-600 text-sm">
+              <span class="w-5 h-5 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <svg class="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              </span>
+              Detecta duplicatas antes de processar
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Final CTA ─────────────────────────────────────────────── -->
+  <section class="relative bg-slate-900 py-32 overflow-hidden">
+    <div class="glow" style="width:700px;height:700px;top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+    <div class="relative z-10 max-w-2xl mx-auto px-5 text-center reveal">
+      <p class="text-[11px] font-semibold text-indigo-400 tracking-[0.18em] uppercase mb-5">Gratuito para começar</p>
+      <h2 class="text-3xl sm:text-4xl font-bold text-white mb-5 tracking-tight leading-tight">
+        Quanto você gastou esse mês<br/>
+        sem perceber?
+      </h2>
+      <p class="text-slate-400 text-lg mb-10 leading-relaxed">
+        Suba a primeira fatura e descubra em menos de um minuto.<br/>
+        Sem cartão de crédito, sem cadastro complicado.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-3 justify-center">
+        <a href="#" class="inline-flex justify-center items-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl px-8 py-4 text-base transition-colors">
+          Começar grátis agora
+        </a>
+        <a href="#" class="inline-flex justify-center items-center text-slate-400 hover:text-white font-medium px-6 py-4 transition-colors text-sm">
+          Já tenho conta →
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ────────────────────────────────────────────────── -->
+  <footer class="bg-slate-950 py-8">
+    <div class="max-w-5xl mx-auto px-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <span class="text-base font-semibold tracking-tight text-indigo-500">luppa</span>
+      <p class="text-xs text-slate-700">© 2026 luppa · Controle seus gastos</p>
+      <div class="flex gap-5">
+        <a href="#" class="text-xs text-slate-700 hover:text-slate-400 transition-colors">Privacidade</a>
+        <a href="#" class="text-xs text-slate-700 hover:text-slate-400 transition-colors">Termos</a>
+        <a href="#" class="text-xs text-slate-700 hover:text-slate-400 transition-colors">Suporte</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ── Navbar scroll behavior ────────────────────────────────────
+    const navbar = document.getElementById('navbar');
+    let heroHeight = document.querySelector('section').offsetHeight;
+
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 60) {
+        navbar.classList.add('scrolled');
+      } else {
+        navbar.classList.remove('scrolled');
+      }
+    }, { passive: true });
+
+    // ── Scroll reveal ─────────────────────────────────────────────
+    const revealObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('in');
+            revealObserver.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.08, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+    // ── Bar chart ─────────────────────────────────────────────────
+    const chartObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            buildChart();
+            chartObserver.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.3 }
+    );
+
+    const chartEl = document.getElementById('landingBarChart');
+    if (chartEl) chartObserver.observe(chartEl);
+
+    function buildChart() {
+      new Chart(chartEl, {
+        type: 'bar',
+        data: {
+          labels: ['Dez', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai'],
+          datasets: [
+            {
+              label: 'Itaú',
+              data: [7200, 8900, 6800, 9100, 7500, 8102],
+              backgroundColor: '#FF6B00',
+              borderRadius: { topLeft: 0, topRight: 0, bottomLeft: 3, bottomRight: 3 }
+            },
+            {
+              label: 'Nubank',
+              data: [950, 1200, 880, 1050, 1100, 1138],
+              backgroundColor: '#820AD1',
+              borderRadius: 0
+            },
+            {
+              label: 'Bradesco',
+              data: [3100, 4100, 3500, 4300, 3700, 3992],
+              backgroundColor: '#CC0000',
+              borderRadius: { topLeft: 4, topRight: 4, bottomLeft: 0, bottomRight: 0 }
+            }
+          ]
+        },
+        options: {
+          animation: { duration: 900, easing: 'easeOutQuart' },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: c => ` ${c.dataset.label}: R$ ${c.raw.toLocaleString('pt-BR')}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              stacked: true,
+              grid: { display: false },
+              ticks: { font: { family: 'Inter', size: 11 }, color: '#94A3B8' }
+            },
+            y: {
+              stacked: true,
+              grid: { color: '#F8FAFC' },
+              ticks: {
+                font: { family: 'DM Mono', size: 10 },
+                color: '#94A3B8',
+                callback: v => 'R$' + (v / 1000).toFixed(0) + 'k'
+              }
+            }
+          },
+          responsive: true,
+          maintainAspectRatio: true
+        }
+      });
+    }
+  </script>
+</body>
+</html>

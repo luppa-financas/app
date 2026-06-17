@@ -9,6 +9,36 @@ import { TransactionsService } from './transactions.service';
 export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
 
+  @Get()
+  async findMany(
+    @CurrentUser() userId: string,
+    @Query('month') month?: string,
+    @Query('bank') bank?: string,
+    @Query('category') category?: string,
+    @Query('subcategory') subcategory?: string,
+    @Query('q') q?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ): Promise<{
+    data: Transaction[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const resolvedPage = page ?? 1;
+    const resolvedLimit = limit ?? 20;
+    const { data, total } = await this.transactionsService.findMany(userId, {
+      month,
+      bank,
+      category,
+      subcategory,
+      q,
+      page: resolvedPage,
+      limit: resolvedLimit,
+    });
+    return { data, total, page: resolvedPage, limit: resolvedLimit };
+  }
+
   @Get('count')
   async count(
     @CurrentUser() userId: string,

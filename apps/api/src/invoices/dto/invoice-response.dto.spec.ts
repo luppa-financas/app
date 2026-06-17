@@ -8,7 +8,9 @@ const base: Invoice = {
   filename: 'fatura.pdf',
   storagePath: 'dev/user-1/fatura.pdf',
   status: InvoiceStatus.DONE,
+  bank: null,
   billingMonth: new Date('2025-09-01'),
+  invoiceTotal: null,
   createdAt: new Date('2026-05-01'),
 };
 

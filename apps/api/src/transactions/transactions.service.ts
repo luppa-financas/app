@@ -6,6 +6,16 @@ import { BulkCategorizeDto } from './dto/bulk-categorize.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { TransactionsRepository } from './transactions.repository';
 
+export interface FindManyFilters {
+  month?: string;
+  bank?: string;
+  category?: string;
+  subcategory?: string;
+  q?: string;
+  page?: number;
+  limit?: number;
+}
+
 @Injectable()
 export class TransactionsService {
   constructor(
@@ -13,6 +23,17 @@ export class TransactionsService {
     private readonly merchantRulesRepository: MerchantRulesRepository,
     private readonly prisma: PrismaService,
   ) {}
+
+  async findMany(
+    userId: string,
+    filters: FindManyFilters,
+  ): Promise<{ data: Transaction[]; total: number }> {
+    return this.transactionsRepository.findPaginated(userId, {
+      ...filters,
+      page: filters.page ?? 1,
+      limit: filters.limit ?? 20,
+    });
+  }
 
   async update(
     id: string,

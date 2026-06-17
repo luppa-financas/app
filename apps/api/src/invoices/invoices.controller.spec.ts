@@ -1,14 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { InvoicesController } from './invoices.controller';
 import { InvoicesService } from './invoices.service';
+import { InvoicesQueryService } from './invoices-query.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 
 const mockInvoicesService = {
   create: jest.fn(),
-  findAll: jest.fn(),
   findById: jest.fn(),
   delete: jest.fn(),
+};
+
+const mockInvoicesQueryService = {
+  list: jest.fn(),
+  history: jest.fn(),
+  summary: jest.fn(),
 };
 
 const emptyDto: CreateInvoiceDto = {};
@@ -21,7 +27,10 @@ describe('InvoicesController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [InvoicesController],
-      providers: [{ provide: InvoicesService, useValue: mockInvoicesService }],
+      providers: [
+        { provide: InvoicesService, useValue: mockInvoicesService },
+        { provide: InvoicesQueryService, useValue: mockInvoicesQueryService },
+      ],
     }).compile();
 
     controller = module.get<InvoicesController>(InvoicesController);
@@ -76,22 +85,101 @@ describe('InvoicesController', () => {
   });
 
   describe('GET /invoices', () => {
-    it('should return list of invoices for the authenticated user', async () => {
-      const invoices = [
-        {
-          id: 'inv-1',
-          filename: 'fatura.pdf',
-          status: 'DONE',
-          billingMonth: new Date('2025-09-01'),
-          transactions: [],
-        },
-      ];
-      mockInvoicesService.findAll.mockResolvedValue(invoices);
+    it('calls queryService.list with userId and filters', async () => {
+      mockInvoicesQueryService.list.mockResolvedValue([]);
+
+      await controller.findAll('user-1', '2026-05', 'itau', 'DONE');
+
+      expect(mockInvoicesQueryService.list).toHaveBeenCalledWith('user-1', {
+        month: '2026-05',
+        bank: 'itau',
+        status: 'DONE',
+      });
+    });
+
+    it('passes undefined filters when not provided', async () => {
+      mockInvoicesQueryService.list.mockResolvedValue([]);
+
+      await controller.findAll('user-1');
+
+      expect(mockInvoicesQueryService.list).toHaveBeenCalledWith('user-1', {
+        month: undefined,
+        bank: undefined,
+        status: undefined,
+      });
+    });
+
+    it('returns the list from queryService directly', async () => {
+      const items = [{ id: 'inv-1', bank: 'itau', invoiceTotal: 8102.44 }];
+      mockInvoicesQueryService.list.mockResolvedValue(items);
 
       const result = await controller.findAll('user-1');
 
-      expect(mockInvoicesService.findAll).toHaveBeenCalledWith('user-1');
-      expect(result[0]).toMatchObject({ id: 'inv-1', total: 0 });
+      expect(result).toBe(items);
+    });
+  });
+
+  describe('GET /invoices/history', () => {
+    it('calls queryService.history with months param', async () => {
+      mockInvoicesQueryService.history.mockResolvedValue([]);
+
+      await controller.history('user-1', 3);
+
+      expect(mockInvoicesQueryService.history).toHaveBeenCalledWith(
+        'user-1',
+        3,
+      );
+    });
+
+    it('defaults to 6 months when months param is not provided', async () => {
+      mockInvoicesQueryService.history.mockResolvedValue([]);
+
+      await controller.history('user-1');
+
+      expect(mockInvoicesQueryService.history).toHaveBeenCalledWith(
+        'user-1',
+        6,
+      );
+    });
+
+    it('returns the history array from queryService', async () => {
+      const data = [{ month: '2026-05', byBank: { itau: 8000 } }];
+      mockInvoicesQueryService.history.mockResolvedValue(data);
+
+      const result = await controller.history('user-1');
+
+      expect(result).toBe(data);
+    });
+  });
+
+  describe('GET /invoices/summary', () => {
+    it('calls queryService.summary with month param', async () => {
+      mockInvoicesQueryService.summary.mockResolvedValue({
+        total: 0,
+        byCategory: [],
+      });
+
+      await controller.summary('user-1', '2026-05');
+
+      expect(mockInvoicesQueryService.summary).toHaveBeenCalledWith(
+        'user-1',
+        '2026-05',
+      );
+    });
+
+    it('throws BadRequestException when month param is missing', async () => {
+      await expect(
+        controller.summary('user-1', undefined as unknown as string),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('returns the summary from queryService', async () => {
+      const data = { total: 1000, byCategory: [] };
+      mockInvoicesQueryService.summary.mockResolvedValue(data);
+
+      const result = await controller.summary('user-1', '2026-05');
+
+      expect(result).toBe(data);
     });
   });
 

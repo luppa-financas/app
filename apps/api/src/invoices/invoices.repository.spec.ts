@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Decimal } from '@prisma/client/runtime/library';
 import { InvoicesRepository } from './invoices.repository';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -9,6 +10,9 @@ const mockPrisma = {
     findMany: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+  },
+  transaction: {
+    groupBy: jest.fn(),
   },
 };
 
@@ -59,7 +63,7 @@ describe('InvoicesRepository', () => {
   });
 
   describe('updateStatus', () => {
-    it('should update only status when billingMonth is not provided', async () => {
+    it('should update only status when no extra fields provided', async () => {
       mockPrisma.invoice.update.mockResolvedValue({});
 
       await repository.updateStatus('inv-1', 'FAILED');
@@ -70,11 +74,32 @@ describe('InvoicesRepository', () => {
       });
     });
 
-    it('should update both status and billingMonth when both are provided', async () => {
+    it('should update status, billingMonth, bank and invoiceTotal when all provided', async () => {
       mockPrisma.invoice.update.mockResolvedValue({});
       const billingMonth = new Date('2026-04-01T00:00:00.000Z');
 
-      await repository.updateStatus('inv-1', 'DONE', billingMonth);
+      await repository.updateStatus('inv-1', 'DONE', {
+        billingMonth,
+        bank: 'itau',
+        invoiceTotal: 1234.56,
+      });
+
+      expect(mockPrisma.invoice.update).toHaveBeenCalledWith({
+        where: { id: 'inv-1' },
+        data: {
+          status: 'DONE',
+          billingMonth,
+          bank: 'itau',
+          invoiceTotal: 1234.56,
+        },
+      });
+    });
+
+    it('should update only status and billingMonth when only billingMonth provided', async () => {
+      mockPrisma.invoice.update.mockResolvedValue({});
+      const billingMonth = new Date('2026-05-01T00:00:00.000Z');
+
+      await repository.updateStatus('inv-1', 'DONE', { billingMonth });
 
       expect(mockPrisma.invoice.update).toHaveBeenCalledWith({
         where: { id: 'inv-1' },
@@ -174,6 +199,204 @@ describe('InvoicesRepository', () => {
       expect(mockPrisma.invoice.delete).toHaveBeenCalledWith({
         where: { id: 'inv-1', userId: 'user-1' },
       });
+    });
+  });
+
+  describe('findAllWithFilters', () => {
+    it('isolates by userId', async () => {
+      mockPrisma.invoice.findMany.mockResolvedValue([]);
+
+      await repository.findAllWithFilters('user-1', {});
+
+      expect(mockPrisma.invoice.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ userId: 'user-1' }) as unknown,
+        }),
+      );
+    });
+
+    it('applies month as [start, end) date range on billingMonth', async () => {
+      mockPrisma.invoice.findMany.mockResolvedValue([]);
+
+      await repository.findAllWithFilters('user-1', { month: '2026-05' });
+
+      expect(mockPrisma.invoice.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            billingMonth: {
+              gte: new Date('2026-05-01T00:00:00.000Z'),
+              lt: new Date('2026-06-01T00:00:00.000Z'),
+            },
+          }) as unknown,
+        }),
+      );
+    });
+
+    it('applies bank filter', async () => {
+      mockPrisma.invoice.findMany.mockResolvedValue([]);
+
+      await repository.findAllWithFilters('user-1', { bank: 'itau' });
+
+      expect(mockPrisma.invoice.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ bank: 'itau' }) as unknown,
+        }),
+      );
+    });
+
+    it('applies status filter', async () => {
+      mockPrisma.invoice.findMany.mockResolvedValue([]);
+
+      await repository.findAllWithFilters('user-1', { status: 'DONE' });
+
+      expect(mockPrisma.invoice.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ status: 'DONE' }) as unknown,
+        }),
+      );
+    });
+
+    it('omits undefined filters from where clause', async () => {
+      mockPrisma.invoice.findMany.mockResolvedValue([]);
+
+      await repository.findAllWithFilters('user-1', {});
+
+      expect(mockPrisma.invoice.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: 'user-1' },
+        }),
+      );
+    });
+
+    it('includes transaction count in the result', async () => {
+      mockPrisma.invoice.findMany.mockResolvedValue([]);
+
+      await repository.findAllWithFilters('user-1', {});
+
+      expect(mockPrisma.invoice.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            _count: { select: { transactions: true } },
+          }) as unknown,
+        }),
+      );
+    });
+  });
+
+  describe('findHistory', () => {
+    it('filters by userId and DONE status', async () => {
+      mockPrisma.invoice.findMany.mockResolvedValue([]);
+
+      await repository.findHistory('user-1', 6);
+
+      expect(mockPrisma.invoice.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId: 'user-1',
+            status: 'DONE',
+          }) as unknown,
+        }),
+      );
+    });
+
+    it('restricts to the last N months using billingMonth gte', async () => {
+      mockPrisma.invoice.findMany.mockResolvedValue([]);
+
+      await repository.findHistory('user-1', 3);
+
+      const typedCalls = mockPrisma.invoice.findMany.mock.calls as Array<
+        [{ where: { billingMonth: { gte: Date } } }]
+      >;
+      const [callArg] = typedCalls[0];
+      expect(callArg.where.billingMonth.gte).toBeInstanceOf(Date);
+    });
+
+    it('selects only billingMonth, bank and invoiceTotal fields', async () => {
+      mockPrisma.invoice.findMany.mockResolvedValue([]);
+
+      await repository.findHistory('user-1', 6);
+
+      expect(mockPrisma.invoice.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: { billingMonth: true, bank: true, invoiceTotal: true },
+        }),
+      );
+    });
+
+    it('returns the raw result from prisma', async () => {
+      const rows = [
+        {
+          billingMonth: new Date('2026-05-01'),
+          bank: 'itau',
+          invoiceTotal: new Decimal('8000'),
+        },
+        {
+          billingMonth: new Date('2026-05-01'),
+          bank: 'nubank',
+          invoiceTotal: new Decimal('1200'),
+        },
+      ];
+      mockPrisma.invoice.findMany.mockResolvedValue(rows);
+
+      const result = await repository.findHistory('user-1', 6);
+
+      expect(result).toBe(rows);
+    });
+  });
+
+  describe('findSummaryByMonth', () => {
+    it('queries invoices for userId and month then groups transactions by category', async () => {
+      mockPrisma.invoice.findMany.mockResolvedValue([
+        { id: 'inv-1' },
+        { id: 'inv-2' },
+      ]);
+      mockPrisma.transaction.groupBy.mockResolvedValue([
+        {
+          category: 'Alimentação',
+          subcategory: 'Delivery',
+          _sum: { amount: new Decimal('216.00') },
+        },
+      ]);
+
+      const result = await repository.findSummaryByMonth('user-1', '2026-05');
+
+      expect(mockPrisma.invoice.findMany).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-1',
+          status: 'DONE',
+          billingMonth: {
+            gte: new Date('2026-05-01T00:00:00.000Z'),
+            lt: new Date('2026-06-01T00:00:00.000Z'),
+          },
+        },
+        select: { id: true },
+      });
+      expect(mockPrisma.transaction.groupBy).toHaveBeenCalledWith({
+        by: ['category', 'subcategory'],
+        where: { invoiceId: { in: ['inv-1', 'inv-2'] }, type: 'DEBIT' },
+        _sum: { amount: true },
+      });
+      expect(result).toEqual([
+        {
+          category: 'Alimentação',
+          subcategory: 'Delivery',
+          _sum: { amount: new Decimal('216.00') },
+        },
+      ]);
+    });
+
+    it('returns empty array when user has no invoices in that month', async () => {
+      mockPrisma.invoice.findMany.mockResolvedValue([]);
+      mockPrisma.transaction.groupBy.mockResolvedValue([]);
+
+      const result = await repository.findSummaryByMonth('user-1', '2026-05');
+
+      expect(result).toEqual([]);
+      expect(mockPrisma.transaction.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { invoiceId: { in: [] }, type: 'DEBIT' },
+        }),
+      );
     });
   });
 });

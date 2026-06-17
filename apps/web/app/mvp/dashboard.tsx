@@ -35,6 +35,7 @@ type Invoice = {
   id: string;
   status: InvoiceStatus;
   billingMonth: string;
+  invoiceTotal: number | null;
   total: number;
 };
 

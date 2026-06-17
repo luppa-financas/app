@@ -65,6 +65,7 @@ describe('TransactionsListener', () => {
     mockStorageService.download.mockResolvedValue(pdfBuffer);
     mockExtractionService.extract.mockResolvedValue({
       invoiceTotal: 45.9,
+      bank: 'nubank',
       transactions: extracted,
       payments: [],
       futureInstallments: [],
@@ -89,7 +90,36 @@ describe('TransactionsListener', () => {
     expect(mockInvoicesRepository.updateStatus).toHaveBeenCalledWith(
       'inv-1',
       InvoiceStatus.DONE,
-      new Date('2026-04-01T00:00:00.000Z'),
+      {
+        billingMonth: new Date('2026-04-01T00:00:00.000Z'),
+        bank: 'nubank',
+        invoiceTotal: 45.9,
+      },
+    );
+  });
+
+  it('passes bank and invoiceTotal to updateStatus on success', async () => {
+    mockStorageService.download.mockResolvedValue(pdfBuffer);
+    mockExtractionService.extract.mockResolvedValue({
+      invoiceTotal: 1234.56,
+      bank: 'itau',
+      transactions: extracted,
+      payments: [],
+      futureInstallments: [],
+      billingMonth: '2026-04',
+    });
+    mockCategorizationService.classifyMany.mockResolvedValue([classified]);
+
+    await listener.handleInvoiceCreated(event);
+
+    expect(mockInvoicesRepository.updateStatus).toHaveBeenCalledWith(
+      'inv-1',
+      InvoiceStatus.DONE,
+      {
+        billingMonth: new Date('2026-04-01T00:00:00.000Z'),
+        bank: 'itau',
+        invoiceTotal: 1234.56,
+      },
     );
   });
 
