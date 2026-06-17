@@ -304,13 +304,15 @@ describe('TransactionsRepository', () => {
         limit: 10,
       });
 
-      const [findManyCall] = mockPrisma.transaction.findMany.mock.calls[0] as [
-        { where: unknown },
-      ];
+      const findManyCalls = mockPrisma.transaction.findMany.mock.calls as Array<
+        [{ where: unknown }]
+      >;
+      const [findManyCall] = findManyCalls[0];
       const findManyWhere = findManyCall.where;
-      const [countCall] = mockPrisma.transaction.count.mock.calls[0] as [
-        { where: unknown },
-      ];
+      const countCalls = mockPrisma.transaction.count.mock.calls as Array<
+        [{ where: unknown }]
+      >;
+      const [countCall] = countCalls[0];
       const countWhere = countCall.where;
 
       expect(findManyWhere).toEqual(countWhere);

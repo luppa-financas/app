@@ -304,9 +304,10 @@ describe('InvoicesRepository', () => {
 
       await repository.findHistory('user-1', 3);
 
-      const [callArg] = mockPrisma.invoice.findMany.mock.calls[0] as [
-        { where: { billingMonth: { gte: Date } } },
-      ];
+      const typedCalls = mockPrisma.invoice.findMany.mock.calls as Array<
+        [{ where: { billingMonth: { gte: Date } } }]
+      >;
+      const [callArg] = typedCalls[0];
       expect(callArg.where.billingMonth.gte).toBeInstanceOf(Date);
     });
 
