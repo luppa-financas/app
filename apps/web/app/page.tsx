@@ -6,7 +6,7 @@ export default async function HomePage() {
   const user = await currentUser();
 
   if (user) {
-    redirect('/dashboard');
+    redirect('/faturas');
   }
 
   return (
