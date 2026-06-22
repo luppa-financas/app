@@ -3,7 +3,7 @@ import { PDFParse } from 'pdf-parse';
 
 export type DetectedBank = 'itau' | 'bradesco' | 'nubank' | 'other';
 
-const BANK_PATTERNS: Array<{ regex: RegExp; bank: DetectedBank }> = [
+export const BANK_PATTERNS: Array<{ regex: RegExp; bank: DetectedBank }> = [
   { regex: /ita[uú]/i, bank: 'itau' },
   { regex: /bradesco/i, bank: 'bradesco' },
   { regex: /nubank|nu\s+pagamentos/i, bank: 'nubank' },
