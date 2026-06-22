@@ -1,120 +1,29 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAuth } from '@clerk/nextjs';
-import { detectEncryptedPdf } from '../../../lib/pdf-crypto';
-import { useInvoicePolling } from '../../../hooks/use-invoice-polling';
+import { useRef, useState } from 'react';
+import { useInvoiceUpload } from '../../../hooks/use-invoice-upload';
 import { formatBRL, formatMonth } from '../../../lib/format';
 import { bankLabel } from '../../../lib/banks';
-import { useRouter } from 'next/navigation';
-
-const API = process.env.NEXT_PUBLIC_API_URL;
-
-type UploadState =
-  | { kind: 'idle' }
-  | { kind: 'uploading' }
-  | { kind: 'processing'; invoiceId: string }
-  | { kind: 'confirm'; invoiceId: string; bank: string | null; billingMonth: string | null; total: number | null }
-  | { kind: 'success'; bank: string | null; billingMonth: string | null }
-  | { kind: 'error-format' }
-  | { kind: 'error-extraction' }
-  | { kind: 'error-password'; file: File }
-  | { kind: 'error-duplicate'; file: File };
 
 export function InvoiceUploadZone() {
-  const { getToken } = useAuth();
-  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [state, setState] = useState<UploadState>({ kind: 'idle' });
   const [dragOver, setDragOver] = useState(false);
-  const [password, setPassword] = useState('');
 
-  const pollingId = state.kind === 'processing' ? state.invoiceId : null;
-  const { status: pollingStatus, invoice: polledInvoice } = useInvoicePolling(pollingId);
+  const {
+    state,
+    password,
+    setPassword,
+    handleFile,
+    onDrop: hookOnDrop,
+    onInputChange,
+    reset,
+    confirmAndFinish,
+  } = useInvoiceUpload();
 
-  // React to polling completion — avoids side effects during render (PollingBridge anti-pattern)
-  useEffect(() => {
-    if (!pollingId) return;
-    if (pollingStatus === 'DONE' || pollingStatus === 'NEEDS_REVIEW') {
-      const inv = polledInvoice as { bank?: string | null; billingMonth?: string | null; invoiceTotal?: number | null } | null;
-      setState({
-        kind: 'confirm',
-        invoiceId: pollingId,
-        bank: inv?.bank ?? null,
-        billingMonth: inv?.billingMonth ? String(inv.billingMonth) : null,
-        total: inv?.invoiceTotal ?? null,
-      });
-    } else if (pollingStatus === 'FAILED') {
-      setState({ kind: 'error-extraction' });
-    }
-  }, [pollingId, pollingStatus, polledInvoice]);
-
-  const uploadFile = useCallback(async (file: File, pwd?: string) => {
-    setState({ kind: 'uploading' });
-    try {
-      const token = await getToken();
-      const form = new FormData();
-      form.append('file', file);
-      if (pwd) form.append('password', pwd);
-
-      const res = await fetch(`${API}/invoices`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-
-      if (res.status === 409) {
-        setState({ kind: 'error-duplicate', file });
-        return;
-      }
-      if (!res.ok) {
-        setState({ kind: 'error-extraction' });
-        return;
-      }
-
-      const { invoiceId } = await res.json() as { invoiceId: string };
-      setState({ kind: 'processing', invoiceId });
-    } catch {
-      setState({ kind: 'error-extraction' });
-    }
-  }, [getToken]);
-
-  const handleFile = useCallback(async (file: File) => {
-    if (!file.name.endsWith('.pdf') && file.type !== 'application/pdf') {
-      setState({ kind: 'error-format' });
-      return;
-    }
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    if (detectEncryptedPdf(bytes)) {
-      setState({ kind: 'error-password', file });
-      return;
-    }
-    await uploadFile(file);
-  }, [uploadFile]);
-
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
+  const onDrop = (e: React.DragEvent) => {
     setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) void handleFile(file);
-  }, [handleFile]);
-
-  const onInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) void handleFile(file);
-    e.target.value = '';
-  }, [handleFile]);
-
-  const reset = useCallback(() => {
-    setState({ kind: 'idle' });
-    setPassword('');
-  }, []);
-
-  const confirmAndFinish = useCallback(() => {
-    if (state.kind !== 'confirm') return;
-    setState({ kind: 'success', bank: state.bank, billingMonth: state.billingMonth });
-    router.refresh();
-  }, [state, router]);
+    hookOnDrop(e);
+  };
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
@@ -275,14 +184,14 @@ export function InvoiceUploadZone() {
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && password && state.kind === 'error-password') {
-                  void uploadFile(state.file, password);
+                  void handleFile(state.file, password);
                 }
               }}
               className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
             />
             <button
               disabled={!password}
-              onClick={() => state.kind === 'error-password' && void uploadFile(state.file, password)}
+              onClick={() => state.kind === 'error-password' && void handleFile(state.file, password)}
               className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl px-5 py-2.5 transition-colors"
             >
               Desbloquear
@@ -306,7 +215,7 @@ export function InvoiceUploadZone() {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={() => state.kind === 'error-duplicate' && void uploadFile(state.file)}
+              onClick={() => state.kind === 'error-duplicate' && void handleFile(state.file)}
               className="flex-1 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl px-4 py-2.5 transition-colors"
             >
               Substituir fatura existente
