@@ -1,6 +1,7 @@
 'use client';
 
 import { formatBRL, formatMonth } from '../../../lib/format';
+import { bankColor, bankLabel } from '../../../lib/banks';
 
 type InvoiceStatus = 'PENDING' | 'DONE' | 'FAILED' | 'NEEDS_REVIEW';
 
@@ -12,12 +13,6 @@ export type InvoiceListItem = {
   billingMonth: string | null;
   total: number;
   transactionCount: number;
-};
-
-const BANK_COLORS: Record<string, string> = {
-  Itaú: '#FF6B00',
-  Nubank: '#820AD1',
-  Bradesco: '#CC0000',
 };
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
@@ -34,15 +29,11 @@ const STATUS_CLASSES: Record<InvoiceStatus, string> = {
   NEEDS_REVIEW: 'bg-amber-100 text-amber-800',
 };
 
-function getBankColor(bank: string | null): string {
-  return bank ? (BANK_COLORS[bank] ?? '#94a3b8') : '#94a3b8';
-}
-
 function BankDot({ bank }: { bank: string | null }) {
   return (
     <span
       className="w-2 h-2 rounded-full flex-shrink-0 inline-block"
-      style={{ backgroundColor: getBankColor(bank) }}
+      style={{ backgroundColor: bankColor(bank) }}
     />
   );
 }
@@ -70,12 +61,12 @@ export function InvoiceList({ invoices }: { invoices: InvoiceListItem[] }) {
         <div
           key={inv.id}
           className="bg-white rounded-xl border border-slate-200 border-l-4 flex items-center justify-between px-5 py-3.5"
-          style={{ borderLeftColor: getBankColor(inv.bank) }}
+          style={{ borderLeftColor: bankColor(inv.bank) }}
         >
           <div className="flex items-center gap-3">
             <BankDot bank={inv.bank} />
             <div>
-              <p className="text-sm font-medium text-slate-800">{inv.bank ?? inv.filename}</p>
+              <p className="text-sm font-medium text-slate-800">{bankLabel(inv.bank) !== '—' ? bankLabel(inv.bank) : inv.filename}</p>
               <p className="text-xs text-slate-400">
                 {formatMonth(inv.billingMonth)}
                 {inv.status === 'DONE' && ` · ${inv.transactionCount} transações`}

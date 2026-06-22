@@ -5,6 +5,7 @@ import { useAuth } from '@clerk/nextjs';
 import { detectEncryptedPdf } from '../../../lib/pdf-crypto';
 import { useInvoicePolling } from '../../../hooks/use-invoice-polling';
 import { formatBRL, formatMonth } from '../../../lib/format';
+import { bankLabel } from '../../../lib/banks';
 import { useRouter } from 'next/navigation';
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -169,7 +170,7 @@ export function InvoiceUploadZone() {
           <div className="grid grid-cols-3 gap-3 mb-5">
             <div className="bg-slate-50 rounded-xl p-4">
               <p className="text-xs text-slate-400 mb-1">Banco</p>
-              <p className="text-sm font-medium text-slate-800">{state.bank ?? '—'}</p>
+              <p className="text-sm font-medium text-slate-800">{bankLabel(state.bank)}</p>
             </div>
             <div className="bg-slate-50 rounded-xl p-4">
               <p className="text-xs text-slate-400 mb-1">Mês</p>
@@ -210,7 +211,7 @@ export function InvoiceUploadZone() {
           </div>
           <p className="text-sm font-semibold text-slate-800 mb-1">Fatura processada</p>
           <p className="text-xs text-slate-400 mb-5">
-            {state.bank ?? 'Fatura'} · {formatMonth(state.billingMonth)} adicionada com sucesso
+            {bankLabel(state.bank)} · {formatMonth(state.billingMonth)} adicionada com sucesso
           </p>
           <button onClick={reset} className="text-sm text-indigo-600 hover:text-indigo-700 font-medium">
             + Adicionar outra fatura
