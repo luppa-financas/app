@@ -17,10 +17,8 @@ export default function V1Layout({ children }: { children: ReactNode }) {
 
       <Nav />
 
-      <main className="flex-1 flex justify-center">
-        <div className="w-full max-w-3xl p-5 lg:p-7">
-          {children}
-        </div>
+      <main className="flex-1">
+        {children}
       </main>
     </div>
   );
