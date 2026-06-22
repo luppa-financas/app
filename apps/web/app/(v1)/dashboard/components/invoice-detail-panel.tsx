@@ -82,7 +82,7 @@ export function InvoiceDetailPanel({ isOpen, invoice: rawInvoice, onClose }: Inv
               placeholder="Buscar transação…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="text-sm w-full outline-none bg-transparent placeholder-slate-400"
+              className="text-sm text-slate-800 w-full outline-none bg-transparent placeholder-slate-400"
             />
           </div>
         </div>
