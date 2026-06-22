@@ -21,7 +21,7 @@ export interface UseInvoiceUploadReturn {
   state: UploadState;
   password: string;
   setPassword: (v: string) => void;
-  handleFile: (file: File) => Promise<void>;
+  handleFile: (file: File, pwd?: string) => Promise<void>;
   onDrop: (e: React.DragEvent) => void;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   reset: () => void;
