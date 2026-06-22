@@ -2,7 +2,6 @@
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { bankColor, bankLabel } from '../../../../lib/banks';
-import { formatMonth } from '../../../../lib/format';
 
 interface HistoryItem {
   month: string;
@@ -19,10 +18,12 @@ function formatK(value: number) {
 }
 
 export function MonthlyBarChart({ data, selectedBanks }: MonthlyBarChartProps) {
-  const chartData = data.map((item) => ({
-    month: formatMonth(`${item.month}-01`).replace(/\s\d{4}$/, ''),
-    ...item.byBank,
-  }));
+  const chartData = data.map((item) => {
+    const date = new Date(`${item.month}-01T12:00:00`);
+    const shortMonth = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+    const shortYear = date.getFullYear().toString().slice(2);
+    return { month: `${shortMonth}/${shortYear}`, ...item.byBank };
+  });
 
   return (
     <ResponsiveContainer width="100%" height={180}>
