@@ -24,12 +24,12 @@ describe('HomePage', () => {
     jest.clearAllMocks();
   });
 
-  it('redirects to /faturas when authenticated', async () => {
+  it('redirects to /dashboard when authenticated', async () => {
     mockCurrentUser.mockResolvedValue({ id: 'user_123' } as any);
     mockRedirect.mockImplementation(() => { throw new Error('REDIRECT'); });
 
     await expect(HomePage()).rejects.toThrow('REDIRECT');
-    expect(mockRedirect).toHaveBeenCalledWith('/faturas');
+    expect(mockRedirect).toHaveBeenCalledWith('/dashboard');
   });
 
   it('renders app name when not authenticated', async () => {
