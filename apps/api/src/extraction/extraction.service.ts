@@ -11,7 +11,7 @@ import {
   ExtractedTransaction,
   ExtractionResult,
 } from './extraction.types';
-import { BankDetectorService } from './bank-detector.service';
+import { BankDetectorService, BANK_PATTERNS } from './bank-detector.service';
 
 interface ClaudeTransaction {
   date: string;
@@ -40,6 +40,7 @@ interface ClaudeFutureInstallment {
 interface ClaudeExtractionResult {
   invoiceTotal: number;
   billingMonth: string;
+  bank_name?: string;
   transactions: ClaudeTransaction[];
   payments?: ClaudePayment[];
   futureInstallments?: ClaudeFutureInstallment[];
@@ -47,12 +48,21 @@ interface ClaudeExtractionResult {
 
 const BILLING_MONTH_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
 
+function normalizeBankName(name: string): string {
+  return BANK_PATTERNS.find(({ regex }) => regex.test(name))?.bank ?? name;
+}
+
 const EXTRACTION_TOOL: Anthropic.Tool = {
   name: 'extract_transactions',
   description: 'Extract all transactions from a credit card invoice PDF',
   input_schema: {
     type: 'object' as const,
     properties: {
+      bank_name: {
+        type: 'string',
+        description:
+          'Full display name of the card issuer as printed on the invoice (e.g. "Itaú", "Nubank", "Bradesco", "Santander", "Banco do Brasil"). Read from the invoice header or logo text.',
+      },
       invoiceTotal: {
         type: 'number',
         description:
@@ -157,6 +167,7 @@ const EXTRACTION_TOOL: Anthropic.Tool = {
       },
     },
     required: [
+      'bank_name',
       'invoiceTotal',
       'billingMonth',
       'transactions',
@@ -166,7 +177,12 @@ const EXTRACTION_TOOL: Anthropic.Tool = {
   },
 };
 
-const EXTRACTION_PROMPT = `Extract every entry from this credit card invoice (fatura) into THREE buckets. Every line in the PDF belongs to exactly ONE bucket — never to multiple, never to none.
+const EXTRACTION_PROMPT = `Extract every entry from this credit card invoice (fatura) into THREE buckets.
+
+BANK NAME
+Read the card issuer name from the invoice header or logo (e.g. "Itaú", "Nubank", "Bradesco", "Santander"). Return it exactly as printed — do not abbreviate or translate.
+
+ Every line in the PDF belongs to exactly ONE bucket — never to multiple, never to none.
 
 BUCKET 1 — \`transactions\` (purchase transactions in the current period)
 - Every line representing a purchase made by the cardholder during the current billing period.
@@ -388,10 +404,14 @@ export class ExtractionService {
       installmentInfo: f.installmentInfo,
     }));
 
+    const resolvedBank = result.bank_name
+      ? normalizeBankName(result.bank_name)
+      : bank;
+
     return {
       invoiceTotal: result.invoiceTotal,
       billingMonth: result.billingMonth,
-      bank,
+      bank: resolvedBank,
       transactions,
       payments,
       futureInstallments,

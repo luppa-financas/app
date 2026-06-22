@@ -368,7 +368,15 @@ export default function Dashboard() {
 
   return (
     <main className="min-h-screen bg-gray-50 p-8 text-gray-900">
-      <h1 className="text-2xl font-bold mb-8 text-gray-900">Luppa</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">Luppa</h1>
+        <a
+          href="/faturas"
+          className="text-xs text-indigo-600 hover:text-indigo-700 border border-indigo-200 hover:border-indigo-300 rounded-lg px-3 py-1.5 transition-colors"
+        >
+          Nova versão →
+        </a>
+      </div>
 
       {/* Upload */}
       <section className="bg-white rounded-xl border p-6 mb-6">

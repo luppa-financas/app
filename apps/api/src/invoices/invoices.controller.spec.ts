@@ -221,7 +221,9 @@ describe('InvoicesController', () => {
         id: 'inv-1',
         filename: 'fatura.pdf',
         status: 'DONE',
+        bank: null,
         billingMonth,
+        invoiceTotal: null,
         transactions: [
           {
             id: 'tx-1',

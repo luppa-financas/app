@@ -33,7 +33,9 @@ export class InvoiceDetailResponseDto {
   id: string;
   filename: string;
   status: string;
+  bank: string | null;
   billingMonth: Date | null;
+  invoiceTotal: number | null;
   transactions: TransactionDto[];
 
   static from(invoice: InvoiceWithTransactions): InvoiceDetailResponseDto {
@@ -41,7 +43,11 @@ export class InvoiceDetailResponseDto {
       id: invoice.id,
       filename: invoice.filename,
       status: invoice.status,
+      bank: invoice.bank ?? null,
       billingMonth: invoice.billingMonth,
+      invoiceTotal: invoice.invoiceTotal !== null && invoice.invoiceTotal !== undefined
+        ? Number(invoice.invoiceTotal)
+        : null,
       transactions: invoice.transactions.map((t) => TransactionDto.from(t)),
     };
   }

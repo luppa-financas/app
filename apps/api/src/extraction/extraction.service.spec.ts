@@ -14,6 +14,7 @@ function makeToolUseResponse(
   payments: object[] = [],
   futureInstallments: object[] = [],
   billingMonth: string = '2025-04',
+  bankName?: string,
 ) {
   return {
     content: [
@@ -25,6 +26,7 @@ function makeToolUseResponse(
           payments,
           futureInstallments,
           billingMonth,
+          ...(bankName !== undefined && { bank_name: bankName }),
         },
       },
     ],
@@ -385,6 +387,42 @@ describe('ExtractionService', () => {
     );
 
     await expect(service.extract(pdf)).rejects.toThrow('API error');
+  });
+
+  describe('bank_name extraction', () => {
+    const mockWithBankName = (bankName?: string) =>
+      mockAnthropicClient.messages.create.mockResolvedValue(
+        makeToolUseResponse(0, [], [], [], '2025-04', bankName),
+      );
+
+    it.each([
+      ['Itaú', 'itau'],
+      ['ITAÚ UNIBANCO', 'itau'],
+      ['Nubank', 'nubank'],
+      ['Nu Pagamentos', 'nubank'],
+      ['Bradesco', 'bradesco'],
+      ['Banco Bradesco', 'bradesco'],
+    ])(
+      'normalizes known bank_name "%s" to key "%s"',
+      async (bankName, expectedKey) => {
+        mockWithBankName(bankName);
+        expect((await service.extract(pdf)).bank).toBe(expectedKey);
+      },
+    );
+
+    it.each(['Santander', 'Banco do Brasil', 'Caixa Econômica Federal', 'C6 Bank'])(
+      'stores unknown bank_name "%s" as-is',
+      async (bankName) => {
+        mockWithBankName(bankName);
+        expect((await service.extract(pdf)).bank).toBe(bankName);
+      },
+    );
+
+    it('falls back to BankDetectorService when bank_name is absent', async () => {
+      mockBankDetector.detect.mockResolvedValue('nubank');
+      mockWithBankName();
+      expect((await service.extract(pdf)).bank).toBe('nubank');
+    });
   });
 
   it('should return billingMonth alongside the other buckets', async () => {
