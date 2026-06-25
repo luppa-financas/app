@@ -4,7 +4,7 @@ import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { useCategoryDrillDown, CategoryItem } from '../../../../hooks/use-category-drill-down';
 import { formatBRL } from '../../../../lib/format';
 
-const COLORS = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#ddd6fe', '#ede9fe', '#818cf8', '#4f46e5', '#7c3aed', '#9333ea'];
+const COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#ec4899', '#14b8a6', '#f97316', '#84cc16', '#8b5cf6', '#06b6d4', '#e11d48'];
 
 interface CategoryPieChartProps {
   byCategory: CategoryItem[];
@@ -26,8 +26,8 @@ export function CategoryPieChart({ byCategory }: CategoryPieChartProps) {
         )}
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="flex-shrink-0">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex-shrink-0 flex justify-center">
           <PieChart width={140} height={140}>
             <Pie
               data={items}
@@ -52,7 +52,7 @@ export function CategoryPieChart({ byCategory }: CategoryPieChartProps) {
           </PieChart>
         </div>
 
-        <ul className="flex-1 min-w-0 grid grid-cols-2 gap-x-3 gap-y-1.5 content-start">
+        <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 flex-1 min-w-0">
           {items.map((item, i) => (
             <li
               key={item.label}
