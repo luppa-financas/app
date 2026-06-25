@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { formatBRL, formatMonth } from '../../../lib/format';
 import { bankColor, bankLabel } from '../../../lib/banks';
@@ -52,6 +52,10 @@ export function InvoiceList({ invoices: initialInvoices }: { invoices: InvoiceLi
   const [invoices, setInvoices] = useState(initialInvoices);
   const [deleting, setDeleting] = useState<string | null>(null);
   const { getToken } = useAuth();
+
+  useEffect(() => {
+    setInvoices(initialInvoices);
+  }, [initialInvoices]);
 
   async function handleDelete(id: string) {
     setDeleting(id);
