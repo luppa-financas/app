@@ -86,7 +86,7 @@ export function DashboardClient({
 
         {/* Charts */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-          <div className="md:col-span-3 bg-white rounded-2xl border border-slate-200 p-5 flex flex-col">
+          <div className="md:col-span-3 bg-white rounded-2xl border border-slate-200 p-5 flex flex-col min-w-0">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">
               Histórico — últimos 6 meses
             </p>
