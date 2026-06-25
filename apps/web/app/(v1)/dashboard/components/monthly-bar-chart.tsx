@@ -26,7 +26,7 @@ export function MonthlyBarChart({ data, selectedBanks }: MonthlyBarChartProps) {
   });
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex-1 flex flex-col min-h-0">
       <div className="flex items-center gap-4 mb-3">
         {selectedBanks.map((bank) => (
           <span key={bank} className="flex items-center gap-1.5 text-xs text-slate-500">
@@ -35,8 +35,8 @@ export function MonthlyBarChart({ data, selectedBanks }: MonthlyBarChartProps) {
           </span>
         ))}
       </div>
-      <div className="flex-1">
-        <ResponsiveContainer width="100%" height={200}>
+      <div className="flex-1 min-h-[200px]">
+        <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} barSize={20} barCategoryGap="30%">
             <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={formatK} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={44} />

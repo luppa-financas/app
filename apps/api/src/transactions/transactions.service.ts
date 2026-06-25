@@ -4,7 +4,7 @@ import { MerchantRulesRepository } from '../merchant-rules/merchant-rules.reposi
 import { PrismaService } from '../prisma/prisma.service';
 import { BulkCategorizeDto } from './dto/bulk-categorize.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
-import { TransactionsRepository } from './transactions.repository';
+import { TransactionsRepository, TransactionWithBank } from './transactions.repository';
 
 export interface FindManyFilters {
   month?: string;
@@ -14,6 +14,8 @@ export interface FindManyFilters {
   q?: string;
   page?: number;
   limit?: number;
+  sort?: 'date' | 'amount';
+  order?: 'asc' | 'desc';
 }
 
 @Injectable()
@@ -27,7 +29,7 @@ export class TransactionsService {
   async findMany(
     userId: string,
     filters: FindManyFilters,
-  ): Promise<{ data: Transaction[]; total: number }> {
+  ): Promise<{ data: TransactionWithBank[]; total: number }> {
     return this.transactionsRepository.findPaginated(userId, {
       ...filters,
       page: filters.page ?? 1,
