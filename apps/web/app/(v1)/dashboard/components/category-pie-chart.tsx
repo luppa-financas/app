@@ -52,15 +52,15 @@ export function CategoryPieChart({ byCategory }: CategoryPieChartProps) {
           </PieChart>
         </div>
 
-        <ul className="flex-1 min-w-0 space-y-1.5 max-h-[132px] overflow-y-auto">
+        <ul className="flex-1 min-w-0 grid grid-cols-2 gap-x-3 gap-y-1.5 content-start">
           {items.map((item, i) => (
             <li
               key={item.label}
               onClick={view === 'categories' ? () => drillInto(item.label) : undefined}
-              className={`flex items-center gap-2 text-xs min-w-0 ${view === 'categories' ? 'cursor-pointer hover:opacity-80' : ''}`}
+              className={`flex items-center gap-1.5 text-xs min-w-0 ${view === 'categories' ? 'cursor-pointer hover:opacity-70' : ''}`}
             >
               <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-              <span className="text-slate-600 truncate flex-1">{item.label}</span>
+              <span className="text-slate-600 truncate">{item.label}</span>
               <span className="text-slate-400 tabular-nums flex-shrink-0">
                 {total > 0 ? `${((item.amount / total) * 100).toFixed(0)}%` : '—'}
               </span>
