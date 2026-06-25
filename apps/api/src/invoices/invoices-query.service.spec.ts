@@ -7,6 +7,7 @@ const mockInvoicesRepository = {
   findAllWithFilters: jest.fn(),
   findHistory: jest.fn(),
   findSummaryByMonth: jest.fn(),
+  findCreditsSumByMonth: jest.fn(),
 };
 
 describe('InvoicesQueryService', () => {
@@ -91,6 +92,76 @@ describe('InvoicesQueryService', () => {
         invoiceTotal: null,
         transactionCount: 0,
       });
+    });
+
+    it('falls back to net (debits − credits) when invoiceTotal is null', async () => {
+      mockInvoicesRepository.findAllWithFilters.mockResolvedValue([
+        {
+          id: 'inv-3',
+          filename: 'legacy.pdf',
+          status: 'DONE',
+          bank: 'itau',
+          billingMonth: new Date('2026-05-01T00:00:00.000Z'),
+          invoiceTotal: null,
+          createdAt: new Date('2026-05-20T00:00:00.000Z'),
+          _count: { transactions: 3 },
+          transactions: [
+            { amount: new Decimal('100.00'), type: 'DEBIT' },
+            { amount: new Decimal('50.00'), type: 'DEBIT' },
+            { amount: new Decimal('30.00'), type: 'CREDIT' },
+          ],
+        },
+      ]);
+
+      const result = await service.list('user-1', {});
+
+      expect(result[0].total).toBeCloseTo(120, 2);
+    });
+
+    it('invoiceTotal has priority over the computed net when both exist', async () => {
+      mockInvoicesRepository.findAllWithFilters.mockResolvedValue([
+        {
+          id: 'inv-4',
+          filename: 'recent.pdf',
+          status: 'DONE',
+          bank: 'itau',
+          billingMonth: new Date('2026-05-01T00:00:00.000Z'),
+          invoiceTotal: new Decimal('999.99'),
+          createdAt: new Date('2026-05-20T00:00:00.000Z'),
+          _count: { transactions: 2 },
+          transactions: [
+            { amount: new Decimal('100.00'), type: 'DEBIT' },
+            { amount: new Decimal('30.00'), type: 'CREDIT' },
+          ],
+        },
+      ]);
+
+      const result = await service.list('user-1', {});
+
+      expect(result[0].total).toBeCloseTo(999.99, 2);
+    });
+
+    it('fallback returns debit sum when there are no credits', async () => {
+      mockInvoicesRepository.findAllWithFilters.mockResolvedValue([
+        {
+          id: 'inv-5',
+          filename: 'old.pdf',
+          status: 'DONE',
+          bank: 'nubank',
+          billingMonth: new Date('2026-04-01T00:00:00.000Z'),
+          invoiceTotal: null,
+          createdAt: new Date('2026-04-20T00:00:00.000Z'),
+          _count: { transactions: 2 },
+          transactions: [
+            { amount: new Decimal('80.00'), type: 'DEBIT' },
+            { amount: new Decimal('20.00'), type: 'DEBIT' },
+          ],
+        },
+      ]);
+
+      const result = await service.list('user-1', {});
+
+      expect(result[0].total).toBeCloseTo(100, 2);
     });
   });
 
@@ -275,6 +346,43 @@ describe('InvoicesQueryService', () => {
 
       expect(typeof result.byCategory[0].amount).toBe('number');
       expect(result.byCategory[0].amount).toBeCloseTo(1080.5, 2);
+    });
+
+    it('subtracts the credits sum from total when there are refunds', async () => {
+      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue([
+        {
+          category: 'Alimentação',
+          subcategory: 'Delivery',
+          _sum: { amount: new Decimal('500.00') },
+        },
+        {
+          category: 'Transporte',
+          subcategory: null,
+          _sum: { amount: new Decimal('200.00') },
+        },
+      ]);
+      mockInvoicesRepository.findCreditsSumByMonth.mockResolvedValue(
+        new Decimal('80.00'),
+      );
+
+      const result = await service.summary('user-1', '2026-05');
+
+      expect(result.total).toBeCloseTo(620, 2);
+    });
+
+    it('does not change total when findCreditsSumByMonth returns null', async () => {
+      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue([
+        {
+          category: 'Alimentação',
+          subcategory: null,
+          _sum: { amount: new Decimal('300.00') },
+        },
+      ]);
+      mockInvoicesRepository.findCreditsSumByMonth.mockResolvedValue(null);
+
+      const result = await service.summary('user-1', '2026-05');
+
+      expect(result.total).toBeCloseTo(300, 2);
     });
   });
 });

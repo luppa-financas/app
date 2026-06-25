@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { TransactionType } from '@prisma/client';
 import { InvoicesRepository } from './invoices.repository';
 
 export interface InvoiceListItemDto {
@@ -43,10 +44,15 @@ export class InvoicesQueryService {
       const invoiceTotal = inv.invoiceTotal
         ? inv.invoiceTotal.toNumber()
         : null;
-      const transactionSum = inv.transactions.reduce(
-        (sum, t) => sum + t.amount.toNumber(),
-        0,
-      );
+      // invoiceTotal is null for invoices processed before the field was added; fall back to net (debits − credits)
+      const total =
+        invoiceTotal ??
+        inv.transactions.reduce((sum, t) => {
+          const value = t.amount.toNumber();
+          return t.type === TransactionType.CREDIT
+            ? sum - value
+            : sum + value;
+        }, 0);
       return {
         id: inv.id,
         filename: inv.filename,
@@ -54,8 +60,7 @@ export class InvoicesQueryService {
         bank: inv.bank ?? null,
         billingMonth: inv.billingMonth,
         invoiceTotal,
-        // invoiceTotal is null for invoices processed before the field was added; fall back to DEBIT sum
-        total: invoiceTotal ?? transactionSum,
+        total,
         transactionCount: inv._count.transactions,
         createdAt: inv.createdAt,
       };
@@ -80,10 +85,10 @@ export class InvoicesQueryService {
   }
 
   async summary(userId: string, month: string): Promise<SummaryDto> {
-    const groups = await this.invoicesRepository.findSummaryByMonth(
-      userId,
-      month,
-    );
+    const [groups, creditsSum] = await Promise.all([
+      this.invoicesRepository.findSummaryByMonth(userId, month),
+      this.invoicesRepository.findCreditsSumByMonth(userId, month),
+    ]);
 
     const byCategory = groups
       .map((g) => ({
@@ -93,7 +98,9 @@ export class InvoicesQueryService {
       }))
       .sort((a, b) => b.amount - a.amount);
 
-    const total = byCategory.reduce((sum, c) => sum + c.amount, 0);
+    const credits = creditsSum?.toNumber() ?? 0;
+    const total =
+      byCategory.reduce((sum, c) => sum + c.amount, 0) - credits;
     return { total, byCategory };
   }
 }
