@@ -22,12 +22,12 @@ export default async function FaturasPage() {
   const invoices = await fetchInvoices(token);
 
   return (
-    <>
+    <div className="max-w-3xl mx-auto p-5 lg:p-7">
       <InvoiceUploadZone />
       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mb-3">
         Faturas importadas
       </p>
       <InvoiceList invoices={invoices} />
-    </>
+    </div>
   );
 }
