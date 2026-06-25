@@ -14,6 +14,8 @@ export interface FindManyFilters {
   q?: string;
   page?: number;
   limit?: number;
+  sort?: 'date' | 'amount';
+  order?: 'asc' | 'desc';
 }
 
 @Injectable()

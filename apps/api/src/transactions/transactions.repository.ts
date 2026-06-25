@@ -10,6 +10,8 @@ export interface FindPaginatedFilters {
   q?: string;
   page: number;
   limit: number;
+  sort?: 'date' | 'amount';
+  order?: 'asc' | 'desc';
 }
 
 export interface TransactionCreateData {
@@ -96,13 +98,15 @@ export class TransactionsRepository {
       ];
     }
 
+    const sortField = filters.sort ?? 'date';
+    const sortOrder = filters.order ?? 'desc';
     const skip = (filters.page - 1) * filters.limit;
     const [data, total] = await Promise.all([
       this.prisma.transaction.findMany({
         where,
         skip,
         take: filters.limit,
-        orderBy: { date: 'desc' },
+        orderBy: { [sortField]: sortOrder },
       }),
       this.prisma.transaction.count({ where }),
     ]);

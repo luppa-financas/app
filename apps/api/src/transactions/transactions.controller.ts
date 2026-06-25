@@ -19,6 +19,8 @@ export class TransactionsController {
     @Query('q') q?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('sort') sort?: 'date' | 'amount',
+    @Query('order') order?: 'asc' | 'desc',
   ): Promise<{
     data: Transaction[];
     total: number;
@@ -35,6 +37,8 @@ export class TransactionsController {
       q,
       page: resolvedPage,
       limit: resolvedLimit,
+      sort,
+      order,
     });
     return { data, total, page: resolvedPage, limit: resolvedLimit };
   }

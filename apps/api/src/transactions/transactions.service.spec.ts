@@ -197,6 +197,47 @@ describe('TransactionsService', () => {
         expect.objectContaining({ page: 1, limit: 20 }),
       );
     });
+
+    it('forwards sort: date and order: asc to the repository', async () => {
+      mockTransactionsRepository.findPaginated.mockResolvedValue({
+        data: [],
+        total: 0,
+      });
+
+      await service.findMany('user-1', { page: 1, limit: 15, sort: 'date', order: 'asc' });
+
+      expect(mockTransactionsRepository.findPaginated).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ sort: 'date', order: 'asc' }),
+      );
+    });
+
+    it('forwards sort: amount and order: desc to the repository', async () => {
+      mockTransactionsRepository.findPaginated.mockResolvedValue({
+        data: [],
+        total: 0,
+      });
+
+      await service.findMany('user-1', { page: 1, limit: 15, sort: 'amount', order: 'desc' });
+
+      expect(mockTransactionsRepository.findPaginated).toHaveBeenCalledWith(
+        'user-1',
+        expect.objectContaining({ sort: 'amount', order: 'desc' }),
+      );
+    });
+
+    it('omits sort and order when not provided', async () => {
+      mockTransactionsRepository.findPaginated.mockResolvedValue({
+        data: [],
+        total: 0,
+      });
+
+      await service.findMany('user-1', { page: 1, limit: 20 });
+
+      const call = (mockTransactionsRepository.findPaginated.mock.calls as unknown[][])[0][1] as Record<string, unknown>;
+      expect(call.sort).toBeUndefined();
+      expect(call.order).toBeUndefined();
+    });
   });
 
   describe('countByDescription', () => {
