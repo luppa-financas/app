@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { Prisma, Transaction, TransactionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
+export type TransactionWithBank = Transaction & {
+  invoice: { bank: string | null };
+};
+
 export interface FindPaginatedFilters {
   month?: string;
   bank?: string;
@@ -78,7 +82,7 @@ export class TransactionsRepository {
   async findPaginated(
     userId: string,
     filters: FindPaginatedFilters,
-  ): Promise<{ data: Transaction[]; total: number }> {
+  ): Promise<{ data: TransactionWithBank[]; total: number }> {
     const invoiceWhere: Record<string, unknown> = { userId };
     if (filters.month) {
       const start = new Date(`${filters.month}-01T00:00:00.000Z`);
@@ -107,6 +111,7 @@ export class TransactionsRepository {
         skip,
         take: filters.limit,
         orderBy: { [sortField]: sortOrder },
+        include: { invoice: { select: { bank: true } } },
       }),
       this.prisma.transaction.count({ where }),
     ]);

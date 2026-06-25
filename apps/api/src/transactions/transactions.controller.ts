@@ -4,6 +4,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { BulkCategorizeDto } from './dto/bulk-categorize.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 import { TransactionsService } from './transactions.service';
+import { TransactionWithBank } from './transactions.repository';
 
 @Controller('transactions')
 export class TransactionsController {
@@ -22,7 +23,7 @@ export class TransactionsController {
     @Query('sort') sort?: 'date' | 'amount',
     @Query('order') order?: 'asc' | 'desc',
   ): Promise<{
-    data: Transaction[];
+    data: TransactionWithBank[];
     total: number;
     page: number;
     limit: number;
