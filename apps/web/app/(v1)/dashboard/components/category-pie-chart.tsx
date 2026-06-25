@@ -26,8 +26,8 @@ export function CategoryPieChart({ byCategory }: CategoryPieChartProps) {
         )}
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-        <div className="flex-shrink-0 flex justify-center">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-4">
+        <div className="w-[140px] flex-shrink-0 mx-auto md:mx-0">
           <PieChart width={140} height={140}>
             <Pie
               data={items}
@@ -52,7 +52,7 @@ export function CategoryPieChart({ byCategory }: CategoryPieChartProps) {
           </PieChart>
         </div>
 
-        <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 flex-1 min-w-0">
+        <ul className="grid grid-cols-2 gap-x-3 gap-y-1.5 md:flex-1 md:min-w-0">
           {items.map((item, i) => (
             <li
               key={item.label}
