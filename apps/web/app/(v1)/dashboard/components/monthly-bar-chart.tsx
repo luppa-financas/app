@@ -1,6 +1,6 @@
 'use client';
 
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { bankColor, bankLabel } from '../../../../lib/banks';
 
 interface HistoryItem {
@@ -26,22 +26,33 @@ export function MonthlyBarChart({ data, selectedBanks }: MonthlyBarChartProps) {
   });
 
   return (
-    <ResponsiveContainer width="100%" height={180}>
-      <BarChart data={chartData} barSize={20} barCategoryGap="30%">
-        <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-        <YAxis tickFormatter={formatK} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={44} />
-        <Tooltip
-          formatter={(value, name) => [
-            new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value)),
-            bankLabel(String(name)),
-          ]}
-          contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
-        />
-        <Legend formatter={(name) => bankLabel(name)} wrapperStyle={{ fontSize: 12 }} />
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-4 mb-3">
         {selectedBanks.map((bank) => (
-          <Bar key={bank} dataKey={bank} stackId="a" fill={bankColor(bank)} radius={selectedBanks[selectedBanks.length - 1] === bank ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+          <span key={bank} className="flex items-center gap-1.5 text-xs text-slate-500">
+            <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: bankColor(bank) }} />
+            {bankLabel(bank)}
+          </span>
         ))}
-      </BarChart>
-    </ResponsiveContainer>
+      </div>
+      <div className="flex-1">
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={chartData} barSize={20} barCategoryGap="30%">
+            <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+            <YAxis tickFormatter={formatK} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={44} />
+            <Tooltip
+              formatter={(value, name) => [
+                new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value)),
+                bankLabel(String(name)),
+              ]}
+              contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
+            />
+            {selectedBanks.map((bank) => (
+              <Bar key={bank} dataKey={bank} stackId="a" fill={bankColor(bank)} radius={selectedBanks[selectedBanks.length - 1] === bank ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }
