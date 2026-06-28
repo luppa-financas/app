@@ -13,8 +13,8 @@ jest.mock('@clerk/localizations', () => ({
 }));
 
 jest.mock('next/font/google', () => ({
-  Geist: () => ({ variable: '--font-geist-sans' }),
-  Geist_Mono: () => ({ variable: '--font-geist-mono' }),
+  Inter: () => ({ variable: '--font-inter' }),
+  DM_Mono: () => ({ variable: '--font-dm-mono' }),
 }));
 
 jest.mock('./globals.css', () => ({}));
