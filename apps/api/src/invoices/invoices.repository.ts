@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
-import { Invoice, InvoiceStatus, Transaction } from '@prisma/client';
+import {
+  Invoice,
+  InvoiceStatus,
+  Transaction,
+  TransactionType,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface CreateInvoiceData {
@@ -25,7 +30,8 @@ export type InvoiceWithTransactions = Invoice & { transactions: Transaction[] };
 export type InvoiceWithDebits = Invoice & {
   transactions: { amount: Decimal }[];
 };
-export type InvoiceWithCount = InvoiceWithDebits & {
+export type InvoiceWithCount = Invoice & {
+  transactions: { amount: Decimal; type: TransactionType }[];
   _count: { transactions: number };
 };
 export type InvoiceHistoryRow = {
@@ -109,7 +115,7 @@ export class InvoicesRepository {
       orderBy: { createdAt: 'desc' },
       include: {
         _count: { select: { transactions: true } },
-        transactions: { where: { type: 'DEBIT' }, select: { amount: true } },
+        transactions: { select: { amount: true, type: true } },
       },
     }) as Promise<InvoiceWithCount[]>;
   }
@@ -156,6 +162,28 @@ export class InvoicesRepository {
       where: { invoiceId: { in: ids }, type: 'DEBIT' },
       _sum: { amount: true },
     }) as unknown as Promise<CategoryGroupRow[]>;
+  }
+
+  async findCreditsSumByMonth(
+    userId: string,
+    month: string,
+  ): Promise<Decimal | null> {
+    const start = new Date(`${month}-01T00:00:00.000Z`);
+    const end = new Date(start);
+    end.setUTCMonth(end.getUTCMonth() + 1);
+
+    const result = await this.prisma.transaction.aggregate({
+      where: {
+        type: TransactionType.CREDIT,
+        invoice: {
+          userId,
+          status: InvoiceStatus.DONE,
+          billingMonth: { gte: start, lt: end },
+        },
+      },
+      _sum: { amount: true },
+    });
+    return result._sum.amount;
   }
 
   async deleteById(id: string, userId: string): Promise<void> {
