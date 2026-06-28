@@ -14,14 +14,15 @@ export type UploadState =
   | { kind: 'success'; bank: string | null; billingMonth: string | null }
   | { kind: 'error-format' }
   | { kind: 'error-extraction' }
-  | { kind: 'error-password'; file: File }
+  | { kind: 'error-password'; file: File; error?: string }
   | { kind: 'error-duplicate'; file: File };
 
 export interface UseInvoiceUploadReturn {
   state: UploadState;
   password: string;
   setPassword: (v: string) => void;
-  handleFile: (file: File, pwd?: string) => Promise<void>;
+  handleFile: (file: File) => Promise<void>;
+  submitPassword: () => Promise<void>;
   onDrop: (e: React.DragEvent) => void;
   onInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   reset: () => void;
@@ -75,6 +76,11 @@ export function useInvoiceUpload(): UseInvoiceUploadReturn {
         return;
       }
       if (!res.ok) {
+        const body = await res.json().catch(() => null) as { code?: string; message?: string } | null;
+        if (res.status === 422 && body?.code === 'WRONG_PASSWORD') {
+          setState({ kind: 'error-password', file, error: body.message ?? 'Senha incorreta' });
+          return;
+        }
         setState({ kind: 'error-extraction' });
         return;
       }
@@ -86,7 +92,7 @@ export function useInvoiceUpload(): UseInvoiceUploadReturn {
     }
   }, []);
 
-  const handleFile = useCallback(async (file: File, pwd?: string) => {
+  const handleFile = useCallback(async (file: File) => {
     if (!file.name.endsWith('.pdf') && file.type !== 'application/pdf') {
       setState({ kind: 'error-format' });
       return;
@@ -96,8 +102,13 @@ export function useInvoiceUpload(): UseInvoiceUploadReturn {
       setState({ kind: 'error-password', file });
       return;
     }
-    await uploadFile(file, pwd);
+    await uploadFile(file);
   }, [uploadFile]);
+
+  const submitPassword = useCallback(async () => {
+    if (state.kind !== 'error-password') return;
+    await uploadFile(state.file, password);
+  }, [state, password, uploadFile]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -127,6 +138,7 @@ export function useInvoiceUpload(): UseInvoiceUploadReturn {
     password,
     setPassword,
     handleFile,
+    submitPassword,
     onDrop,
     onInputChange,
     reset,

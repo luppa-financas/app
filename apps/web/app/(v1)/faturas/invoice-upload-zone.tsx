@@ -14,6 +14,7 @@ export function InvoiceUploadZone() {
     password,
     setPassword,
     handleFile,
+    submitPassword,
     onDrop: hookOnDrop,
     onInputChange,
     reset,
@@ -183,20 +184,21 @@ export function InvoiceUploadZone() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && password && state.kind === 'error-password') {
-                  void handleFile(state.file, password);
+                if (e.key === 'Enter' && password) {
+                  void submitPassword();
                 }
               }}
               className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
             />
             <button
               disabled={!password}
-              onClick={() => state.kind === 'error-password' && void handleFile(state.file, password)}
+              onClick={() => void submitPassword()}
               className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-medium rounded-xl px-5 py-2.5 transition-colors"
             >
               Desbloquear
             </button>
           </div>
+          {state.error && <p className="text-sm text-red-600 mt-2">{state.error}</p>}
           <p className="text-xs text-slate-400 mt-2">A senha não é armazenada e é usada somente neste momento.</p>
         </div>
       )}
