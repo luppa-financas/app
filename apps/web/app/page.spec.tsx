@@ -13,8 +13,8 @@ jest.mock('next/navigation', () => ({
   redirect: jest.fn(),
 }));
 
-jest.mock('./components/landing/landing-feature-analytics', () => ({
-  LandingFeatureAnalytics: () => <section data-testid="analytics-stub" />,
+jest.mock('./components/landing/analytics-chart', () => ({
+  AnalyticsChart: () => <div data-testid="analytics-chart-stub" />,
 }));
 
 class IntersectionObserverStub {
