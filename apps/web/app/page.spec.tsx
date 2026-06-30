@@ -13,6 +13,21 @@ jest.mock('next/navigation', () => ({
   redirect: jest.fn(),
 }));
 
+jest.mock('./components/landing/analytics-chart', () => ({
+  AnalyticsChart: () => <div data-testid="analytics-chart-stub" />,
+}));
+
+class IntersectionObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() { return []; }
+  root = null;
+  rootMargin = '';
+  thresholds: number[] = [];
+}
+global.IntersectionObserver = IntersectionObserverStub as unknown as typeof IntersectionObserver;
+
 import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 
@@ -25,34 +40,22 @@ describe('HomePage', () => {
   });
 
   it('redirects to /dashboard when authenticated', async () => {
-    mockCurrentUser.mockResolvedValue({ id: 'user_123' } as any);
+    mockCurrentUser.mockResolvedValue({ id: 'user_123' } as never);
     mockRedirect.mockImplementation(() => { throw new Error('REDIRECT'); });
 
     await expect(HomePage()).rejects.toThrow('REDIRECT');
     expect(mockRedirect).toHaveBeenCalledWith('/dashboard');
   });
 
-  it('renders app name when not authenticated', async () => {
+  it('renders the landing page without crashing for unauthenticated users', async () => {
     mockCurrentUser.mockResolvedValue(null);
 
     render(await HomePage());
 
-    expect(screen.getByText('Luppa')).toBeInTheDocument();
-  });
-
-  it('renders sign-in link when not authenticated', async () => {
-    mockCurrentUser.mockResolvedValue(null);
-
-    render(await HomePage());
-
+    expect(screen.getAllByText('luppa').length).toBeGreaterThan(0);
     expect(screen.getByRole('link', { name: /entrar/i })).toHaveAttribute('href', '/sign-in');
-  });
-
-  it('renders sign-up link when not authenticated', async () => {
-    mockCurrentUser.mockResolvedValue(null);
-
-    render(await HomePage());
-
-    expect(screen.getByRole('link', { name: /criar conta/i })).toHaveAttribute('href', '/sign-up');
+    expect(screen.getAllByRole('link', { name: /começar grátis/i })[0]).toHaveAttribute('href', '/sign-up');
+    expect(screen.getByRole('heading', { level: 1, name: /entenda pra onde/i })).toBeInTheDocument();
+    expect(screen.getByText(/três passos\. sem complicação\./i)).toBeInTheDocument();
   });
 });

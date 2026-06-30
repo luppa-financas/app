@@ -8,8 +8,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-dm-mono);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,5 +22,63 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+.mono {
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+/* Landing page — hero radial glow */
+.landing-glow {
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.16) 0%, transparent 65%);
+}
+
+/* Landing page — hero entrance + float */
+@keyframes landing-fade-up {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes landing-float-y {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(-10px); }
+}
+
+@keyframes landing-pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.3; }
+}
+
+.landing-fade-up,
+.landing-fade-up-2,
+.landing-fade-up-3,
+.landing-fade-up-4 {
+  opacity: 0;
+  animation: landing-fade-up 0.7s ease forwards;
+}
+.landing-fade-up   { animation-delay: 0.05s; }
+.landing-fade-up-2 { animation-delay: 0.2s; }
+.landing-fade-up-3 { animation-delay: 0.35s; }
+.landing-fade-up-4 { animation-delay: 0.5s; }
+
+.landing-hero-preview {
+  opacity: 0;
+  animation: landing-fade-up 0.8s 0.25s ease forwards, landing-float-y 5.5s 1.05s ease-in-out infinite;
+}
+
+.landing-pulse-dot {
+  animation: landing-pulse-dot 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-fade-up,
+  .landing-fade-up-2,
+  .landing-fade-up-3,
+  .landing-fade-up-4,
+  .landing-hero-preview,
+  .landing-pulse-dot {
+    animation: none;
+    opacity: 1;
+  }
 }

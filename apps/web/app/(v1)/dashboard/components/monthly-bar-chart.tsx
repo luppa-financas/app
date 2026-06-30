@@ -36,7 +36,7 @@ export function MonthlyBarChart({ data, selectedBanks }: MonthlyBarChartProps) {
         ))}
       </div>
       <div className="flex-1 min-h-[200px]">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minHeight={200}>
           <BarChart data={chartData} barSize={20} barCategoryGap="30%">
             <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={formatK} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={44} />
