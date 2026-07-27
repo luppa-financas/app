@@ -1,6 +1,6 @@
 'use client';
 
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, LabelList, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { bankColor, bankLabel } from '../../../../lib/banks';
 import { formatBRL } from '../../../../lib/format';
 
@@ -23,7 +23,8 @@ export function MonthlyBarChart({ data, selectedBanks }: MonthlyBarChartProps) {
     const date = new Date(`${item.month}-01T12:00:00`);
     const shortMonth = date.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
     const shortYear = date.getFullYear().toString().slice(2);
-    return { month: `${shortMonth}/${shortYear}`, ...item.byBank };
+    const _total = selectedBanks.reduce((sum, bank) => sum + (item.byBank[bank] ?? 0), 0);
+    return { month: `${shortMonth}/${shortYear}`, ...item.byBank, _total };
   });
 
   const periodTotal = data.reduce(
@@ -50,8 +51,8 @@ export function MonthlyBarChart({ data, selectedBanks }: MonthlyBarChartProps) {
       </div>
       <div className="flex-1 min-h-[200px]">
         <ResponsiveContainer width="100%" height="100%" minHeight={200}>
-          <BarChart data={chartData} barSize={20} barCategoryGap="30%">
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+          <BarChart data={chartData} barSize={20} barCategoryGap="30%" margin={{ top: 28 }}>
+            <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#475569' }} axisLine={false} tickLine={false} />
             <YAxis tickFormatter={formatK} tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={44} />
             <Tooltip
               formatter={(value, name) => [
@@ -59,10 +60,18 @@ export function MonthlyBarChart({ data, selectedBanks }: MonthlyBarChartProps) {
                 bankLabel(String(name)),
               ]}
               contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
+              labelStyle={{ color: '#1e293b', fontWeight: 600 }}
             />
-            {selectedBanks.map((bank) => (
-              <Bar key={bank} dataKey={bank} stackId="a" fill={bankColor(bank)} radius={selectedBanks[selectedBanks.length - 1] === bank ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
-            ))}
+            {selectedBanks.map((bank) => {
+              const isLast = selectedBanks[selectedBanks.length - 1] === bank;
+              return (
+                <Bar key={bank} dataKey={bank} stackId="a" fill={bankColor(bank)} radius={isLast ? [4, 4, 0, 0] : [0, 0, 0, 0]}>
+                  {isLast && (
+                    <LabelList dataKey="_total" position="top" formatter={(v: number) => formatBRL(v)} style={{ fontSize: 10, fill: '#64748b' }} />
+                  )}
+                </Bar>
+              );
+            })}
           </BarChart>
         </ResponsiveContainer>
       </div>
