@@ -90,18 +90,35 @@ describe('InvoicesService', () => {
         originalname: 'Fatura Nubank Julho 2026.pdf',
       } as Express.Multer.File;
       mockStorageService.upload.mockResolvedValue('local/user-1/safe.pdf');
-      mockInvoicesRepository.create.mockResolvedValue({ id: 'inv-1', userId: 'user-1', storagePath: 'local/user-1/safe.pdf' });
+      mockInvoicesRepository.create.mockResolvedValue({
+        id: 'inv-1',
+        userId: 'user-1',
+        storagePath: 'local/user-1/safe.pdf',
+      });
 
       await service.create('user-1', fileWithSpaces);
 
-      const uploadedPath = (mockStorageService.upload as jest.Mock).mock.calls[0][1] as string;
-      expect(uploadedPath).not.toContain('Fatura Nubank Julho 2026');
-      expect(uploadedPath).not.toContain(' ');
+      expect(mockStorageService.upload).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.stringContaining(' '),
+        expect.anything(),
+        expect.anything(),
+      );
+      expect(mockStorageService.upload).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.stringContaining('Fatura Nubank'),
+        expect.anything(),
+        expect.anything(),
+      );
     });
 
     it('saves provided name (trimmed) when dto.name is given', async () => {
       mockStorageService.upload.mockResolvedValue('local/user-1/safe.pdf');
-      mockInvoicesRepository.create.mockResolvedValue({ id: 'inv-1', userId: 'user-1', storagePath: 'local/user-1/safe.pdf' });
+      mockInvoicesRepository.create.mockResolvedValue({
+        id: 'inv-1',
+        userId: 'user-1',
+        storagePath: 'local/user-1/safe.pdf',
+      });
 
       await service.create('user-1', file, undefined, '  Meu Nubank  ');
 
@@ -111,9 +128,16 @@ describe('InvoicesService', () => {
     });
 
     it('falls back to trimmed originalname when no dto.name is provided', async () => {
-      const fileWithSpaces = { ...file, originalname: '  fatura.pdf  ' } as Express.Multer.File;
+      const fileWithSpaces = {
+        ...file,
+        originalname: '  fatura.pdf  ',
+      } as Express.Multer.File;
       mockStorageService.upload.mockResolvedValue('local/user-1/safe.pdf');
-      mockInvoicesRepository.create.mockResolvedValue({ id: 'inv-1', userId: 'user-1', storagePath: 'local/user-1/safe.pdf' });
+      mockInvoicesRepository.create.mockResolvedValue({
+        id: 'inv-1',
+        userId: 'user-1',
+        storagePath: 'local/user-1/safe.pdf',
+      });
 
       await service.create('user-1', fileWithSpaces);
 

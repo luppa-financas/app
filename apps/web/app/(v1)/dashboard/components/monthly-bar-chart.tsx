@@ -2,6 +2,7 @@
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { bankColor, bankLabel } from '../../../../lib/banks';
+import { formatBRL } from '../../../../lib/format';
 
 interface HistoryItem {
   month: string;
@@ -25,15 +26,27 @@ export function MonthlyBarChart({ data, selectedBanks }: MonthlyBarChartProps) {
     return { month: `${shortMonth}/${shortYear}`, ...item.byBank };
   });
 
+  const periodTotal = data.reduce(
+    (sum, item) => sum + selectedBanks.reduce((s, bank) => s + (item.byBank[bank] ?? 0), 0),
+    0,
+  );
+
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex items-center gap-4 mb-3">
-        {selectedBanks.map((bank) => (
-          <span key={bank} className="flex items-center gap-1.5 text-xs text-slate-500">
-            <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: bankColor(bank) }} />
-            {bankLabel(bank)}
+      <div className="flex items-center justify-between gap-4 mb-3">
+        <div className="flex items-center gap-4">
+          {selectedBanks.map((bank) => (
+            <span key={bank} className="flex items-center gap-1.5 text-xs text-slate-500">
+              <span className="w-2 h-2 rounded-sm inline-block" style={{ backgroundColor: bankColor(bank) }} />
+              {bankLabel(bank)}
+            </span>
+          ))}
+        </div>
+        {periodTotal > 0 && (
+          <span className="text-xs text-slate-500 whitespace-nowrap">
+            Total <span className="font-semibold text-slate-700 font-mono">{formatBRL(periodTotal)}</span>
           </span>
-        ))}
+        )}
       </div>
       <div className="flex-1 min-h-[200px]">
         <ResponsiveContainer width="100%" height="100%" minHeight={200}>
