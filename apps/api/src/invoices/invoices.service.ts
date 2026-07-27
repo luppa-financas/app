@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import {
   Injectable,
   Logger,
@@ -37,6 +38,7 @@ export class InvoicesService {
     userId: string,
     file: Express.Multer.File,
     password?: string,
+    name?: string,
   ): Promise<{ invoiceId: string }> {
     let buffer = file.buffer;
 
@@ -61,7 +63,7 @@ export class InvoicesService {
 
     const storagePath = await this.storageService.upload(
       INVOICES_BUCKET,
-      `${userId}/${Date.now()}-${file.originalname}`,
+      `${userId}/${Date.now()}-${randomUUID()}.pdf`,
       buffer,
       file.mimetype,
     );
@@ -69,6 +71,7 @@ export class InvoicesService {
     const invoice = await this.invoicesRepository.create({
       userId,
       filename: file.originalname,
+      name: name?.trim() ?? file.originalname.trim(),
       storagePath,
     });
 

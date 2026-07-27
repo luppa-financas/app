@@ -1,4 +1,4 @@
-import { IsDateString, IsOptional } from 'class-validator';
+import { IsDateString, IsOptional, IsString } from 'class-validator';
 
 export class CreateInvoiceDto {
   // Kept for backward compatibility with the MVP front-end, which still
@@ -7,4 +7,8 @@ export class CreateInvoiceDto {
   @IsOptional()
   @IsDateString()
   billingMonth?: string;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
 }

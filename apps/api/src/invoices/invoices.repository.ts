@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 interface CreateInvoiceData {
   userId: string;
   filename: string;
+  name: string;
   storagePath: string;
 }
 

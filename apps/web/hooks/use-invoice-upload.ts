@@ -21,6 +21,8 @@ export interface UseInvoiceUploadReturn {
   state: UploadState;
   password: string;
   setPassword: (v: string) => void;
+  name: string;
+  setName: (v: string) => void;
   handleFile: (file: File) => Promise<void>;
   submitPassword: () => Promise<void>;
   onDrop: (e: React.DragEvent) => void;
@@ -37,6 +39,7 @@ export function useInvoiceUpload(): UseInvoiceUploadReturn {
 
   const [state, setState] = useState<UploadState>({ kind: 'idle' });
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
 
   const pollingId = state.kind === 'processing' ? state.invoiceId : null;
   const { status: pollingStatus, invoice: polledInvoice } = useInvoicePolling(pollingId);
@@ -57,6 +60,9 @@ export function useInvoiceUpload(): UseInvoiceUploadReturn {
     }
   }, [pollingId, pollingStatus, polledInvoice]);
 
+  const nameRef = useRef(name);
+  nameRef.current = name;
+
   const uploadFile = useCallback(async (file: File, pwd?: string) => {
     setState({ kind: 'uploading' });
     try {
@@ -64,6 +70,7 @@ export function useInvoiceUpload(): UseInvoiceUploadReturn {
       const form = new FormData();
       form.append('file', file);
       if (pwd) form.append('password', pwd);
+      if (nameRef.current.trim()) form.append('name', nameRef.current.trim());
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/invoices`, {
         method: 'POST',
@@ -125,6 +132,7 @@ export function useInvoiceUpload(): UseInvoiceUploadReturn {
   const reset = useCallback(() => {
     setState({ kind: 'idle' });
     setPassword('');
+    setName('');
   }, []);
 
   const confirmAndFinish = useCallback(() => {
@@ -137,6 +145,8 @@ export function useInvoiceUpload(): UseInvoiceUploadReturn {
     state,
     password,
     setPassword,
+    name,
+    setName,
     handleFile,
     submitPassword,
     onDrop,

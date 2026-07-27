@@ -10,6 +10,7 @@ type InvoiceStatus = 'PENDING' | 'DONE' | 'FAILED' | 'NEEDS_REVIEW';
 export type InvoiceListItem = {
   id: string;
   filename: string;
+  name: string | null;
   status: InvoiceStatus;
   bank: string | null;
   billingMonth: string | null;
@@ -89,7 +90,7 @@ export function InvoiceList({ invoices: initialInvoices }: { invoices: InvoiceLi
           <div className="flex items-center gap-3">
             <BankDot bank={inv.bank} />
             <div>
-              <p className="text-sm font-medium text-slate-800">{bankLabel(inv.bank) !== '—' ? bankLabel(inv.bank) : inv.filename}</p>
+              <p className="text-sm font-medium text-slate-800">{bankLabel(inv.bank) !== '—' ? bankLabel(inv.bank) : (inv.name ?? inv.filename)}</p>
               <p className="text-xs text-slate-400">
                 {formatMonth(inv.billingMonth)}
                 {inv.status === 'DONE' && ` · ${inv.transactionCount} transações`}

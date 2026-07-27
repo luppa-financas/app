@@ -13,6 +13,8 @@ export function InvoiceUploadZone() {
     state,
     password,
     setPassword,
+    name,
+    setName,
     handleFile,
     submitPassword,
     onDrop: hookOnDrop,
@@ -30,6 +32,20 @@ export function InvoiceUploadZone() {
     <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-6">
       {/* idle / uploading */}
       {(state.kind === 'idle' || state.kind === 'uploading') && (
+        <>
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-slate-500 mb-1.5">
+              Nome da fatura <span className="text-slate-400 font-normal">(opcional)</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ex: Nubank Julho 2026"
+              disabled={state.kind === 'uploading'}
+              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 placeholder-slate-300 disabled:opacity-50"
+            />
+          </div>
         <div
           className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all ${
             dragOver
@@ -52,6 +68,7 @@ export function InvoiceUploadZone() {
           <p className="text-xs text-slate-400">ou clique para selecionar · PDF até 20 MB</p>
           <input ref={fileInputRef} type="file" accept=".pdf" className="hidden" onChange={onInputChange} />
         </div>
+        </>
       )}
 
       {/* processing */}

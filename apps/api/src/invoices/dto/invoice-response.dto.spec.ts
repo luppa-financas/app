@@ -6,6 +6,7 @@ const base: Invoice = {
   id: 'inv-1',
   userId: 'user-1',
   filename: 'fatura.pdf',
+  name: null,
   storagePath: 'dev/user-1/fatura.pdf',
   status: InvoiceStatus.DONE,
   bank: null,
@@ -32,6 +33,16 @@ describe('InvoiceResponseDto.from', () => {
       transactions: [],
     });
     expect(dto.billingMonth).toBeNull();
+  });
+
+  it('exposes name field', () => {
+    const dto = InvoiceResponseDto.from({ ...base, name: 'Meu Nubank', transactions: [] });
+    expect(dto.name).toBe('Meu Nubank');
+  });
+
+  it('exposes null when name is not set', () => {
+    const dto = InvoiceResponseDto.from({ ...base, name: null, transactions: [] });
+    expect(dto.name).toBeNull();
   });
 
   it('excludes createdAt', () => {

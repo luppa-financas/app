@@ -67,13 +67,14 @@ describe('InvoicesService', () => {
 
       expect(mockStorageService.upload).toHaveBeenCalledWith(
         'invoices',
-        expect.stringMatching(/^user-1\/\d+-fatura\.pdf$/),
+        expect.stringMatching(/^user-1\/\d+-.+\.pdf$/),
         file.buffer,
         'application/pdf',
       );
       expect(mockInvoicesRepository.create).toHaveBeenCalledWith({
         userId: 'user-1',
         filename: 'fatura.pdf',
+        name: 'fatura.pdf',
         storagePath: 'local/user-1/fatura.pdf',
       });
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
@@ -81,6 +82,44 @@ describe('InvoicesService', () => {
         expect.any(InvoiceCreatedEvent),
       );
       expect(result).toEqual({ invoiceId: 'inv-1' });
+    });
+
+    it('storage path never contains the original filename', async () => {
+      const fileWithSpaces = {
+        ...file,
+        originalname: 'Fatura Nubank Julho 2026.pdf',
+      } as Express.Multer.File;
+      mockStorageService.upload.mockResolvedValue('local/user-1/safe.pdf');
+      mockInvoicesRepository.create.mockResolvedValue({ id: 'inv-1', userId: 'user-1', storagePath: 'local/user-1/safe.pdf' });
+
+      await service.create('user-1', fileWithSpaces);
+
+      const uploadedPath = (mockStorageService.upload as jest.Mock).mock.calls[0][1] as string;
+      expect(uploadedPath).not.toContain('Fatura Nubank Julho 2026');
+      expect(uploadedPath).not.toContain(' ');
+    });
+
+    it('saves provided name (trimmed) when dto.name is given', async () => {
+      mockStorageService.upload.mockResolvedValue('local/user-1/safe.pdf');
+      mockInvoicesRepository.create.mockResolvedValue({ id: 'inv-1', userId: 'user-1', storagePath: 'local/user-1/safe.pdf' });
+
+      await service.create('user-1', file, undefined, '  Meu Nubank  ');
+
+      expect(mockInvoicesRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'Meu Nubank' }),
+      );
+    });
+
+    it('falls back to trimmed originalname when no dto.name is provided', async () => {
+      const fileWithSpaces = { ...file, originalname: '  fatura.pdf  ' } as Express.Multer.File;
+      mockStorageService.upload.mockResolvedValue('local/user-1/safe.pdf');
+      mockInvoicesRepository.create.mockResolvedValue({ id: 'inv-1', userId: 'user-1', storagePath: 'local/user-1/safe.pdf' });
+
+      await service.create('user-1', fileWithSpaces);
+
+      expect(mockInvoicesRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'fatura.pdf' }),
+      );
     });
 
     it('should not create invoice if upload fails', async () => {
@@ -144,7 +183,7 @@ describe('InvoicesService', () => {
       );
       expect(mockStorageService.upload).toHaveBeenCalledWith(
         'invoices',
-        expect.stringMatching(/^user-1\/\d+-fatura\.pdf$/),
+        expect.stringMatching(/^user-1\/\d+-.+\.pdf$/),
         decrypted,
         'application/pdf',
       );
