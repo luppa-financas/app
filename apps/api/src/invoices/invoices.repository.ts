@@ -1,11 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
-import {
-  Invoice,
-  InvoiceStatus,
-  Transaction,
-  TransactionType,
-} from '@prisma/client';
+import { Invoice, InvoiceStatus, Transaction, TransactionType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface CreateInvoiceData {
@@ -142,7 +137,7 @@ export class InvoicesRepository {
   async findSummaryByMonth(
     userId: string,
     month: string,
-  ): Promise<CategoryGroupRow[]> {
+  ): Promise<{ debits: CategoryGroupRow[]; credits: CategoryGroupRow[] }> {
     const start = new Date(`${month}-01T00:00:00.000Z`);
     const end = new Date(start);
     end.setUTCMonth(end.getUTCMonth() + 1);
@@ -157,33 +152,23 @@ export class InvoicesRepository {
     });
     const ids = invoices.map((i) => i.id);
 
-    return this.prisma.transaction.groupBy({
-      by: ['category', 'subcategory'],
-      where: { invoiceId: { in: ids }, type: 'DEBIT' },
-      _sum: { amount: true },
-    }) as unknown as Promise<CategoryGroupRow[]>;
-  }
+    const [debits, credits] = await Promise.all([
+      this.prisma.transaction.groupBy({
+        by: ['category', 'subcategory'],
+        where: { invoiceId: { in: ids }, type: 'DEBIT' },
+        _sum: { amount: true },
+      }),
+      this.prisma.transaction.groupBy({
+        by: ['category', 'subcategory'],
+        where: { invoiceId: { in: ids }, type: 'CREDIT' },
+        _sum: { amount: true },
+      }),
+    ]);
 
-  async findCreditsSumByMonth(
-    userId: string,
-    month: string,
-  ): Promise<Decimal | null> {
-    const start = new Date(`${month}-01T00:00:00.000Z`);
-    const end = new Date(start);
-    end.setUTCMonth(end.getUTCMonth() + 1);
-
-    const result = await this.prisma.transaction.aggregate({
-      where: {
-        type: TransactionType.CREDIT,
-        invoice: {
-          userId,
-          status: InvoiceStatus.DONE,
-          billingMonth: { gte: start, lt: end },
-        },
-      },
-      _sum: { amount: true },
-    });
-    return result._sum.amount;
+    return {
+      debits: debits as unknown as CategoryGroupRow[],
+      credits: credits as unknown as CategoryGroupRow[],
+    };
   }
 
   async deleteById(id: string, userId: string): Promise<void> {

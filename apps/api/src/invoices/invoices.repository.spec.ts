@@ -345,7 +345,7 @@ describe('InvoicesRepository', () => {
   });
 
   describe('findSummaryByMonth', () => {
-    it('queries invoices for userId and month then groups transactions by category', async () => {
+    it('queries invoices for userId and month then groups debits and credits by category', async () => {
       mockPrisma.invoice.findMany.mockResolvedValue([
         { id: 'inv-1' },
         { id: 'inv-2' },
@@ -371,12 +371,24 @@ describe('InvoicesRepository', () => {
         },
         select: { id: true },
       });
-      expect(mockPrisma.transaction.groupBy).toHaveBeenCalledWith({
-        by: ['category', 'subcategory'],
-        where: { invoiceId: { in: ['inv-1', 'inv-2'] }, type: 'DEBIT' },
-        _sum: { amount: true },
-      });
-      expect(result).toEqual([
+      expect(mockPrisma.transaction.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { invoiceId: { in: ['inv-1', 'inv-2'] }, type: 'DEBIT' },
+        }),
+      );
+      expect(mockPrisma.transaction.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { invoiceId: { in: ['inv-1', 'inv-2'] }, type: 'CREDIT' },
+        }),
+      );
+      expect(result.debits).toEqual([
+        {
+          category: 'Alimentação',
+          subcategory: 'Delivery',
+          _sum: { amount: new Decimal('216.00') },
+        },
+      ]);
+      expect(result.credits).toEqual([
         {
           category: 'Alimentação',
           subcategory: 'Delivery',
@@ -385,16 +397,21 @@ describe('InvoicesRepository', () => {
       ]);
     });
 
-    it('returns empty array when user has no invoices in that month', async () => {
+    it('returns empty debits and credits when user has no invoices in that month', async () => {
       mockPrisma.invoice.findMany.mockResolvedValue([]);
       mockPrisma.transaction.groupBy.mockResolvedValue([]);
 
       const result = await repository.findSummaryByMonth('user-1', '2026-05');
 
-      expect(result).toEqual([]);
+      expect(result).toEqual({ debits: [], credits: [] });
       expect(mockPrisma.transaction.groupBy).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { invoiceId: { in: [] }, type: 'DEBIT' },
+        }),
+      );
+      expect(mockPrisma.transaction.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { invoiceId: { in: [] }, type: 'CREDIT' },
         }),
       );
     });
