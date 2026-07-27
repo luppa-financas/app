@@ -7,7 +7,6 @@ const mockInvoicesRepository = {
   findAllWithFilters: jest.fn(),
   findHistory: jest.fn(),
   findSummaryByMonth: jest.fn(),
-  findCreditsSumByMonth: jest.fn(),
 };
 
 describe('InvoicesQueryService', () => {
@@ -268,7 +267,10 @@ describe('InvoicesQueryService', () => {
 
   describe('summary', () => {
     it('calls findSummaryByMonth with userId and month', async () => {
-      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue([]);
+      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue({
+        debits: [],
+        credits: [],
+      });
 
       await service.summary('user-1', '2026-05');
 
@@ -278,43 +280,177 @@ describe('InvoicesQueryService', () => {
       );
     });
 
-    it('returns total as sum of all category amounts', async () => {
-      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue([
-        {
-          category: 'Alimentação',
-          subcategory: 'Delivery',
-          _sum: { amount: new Decimal('216.00') },
-        },
-        {
-          category: 'Transporte',
-          subcategory: null,
-          _sum: { amount: new Decimal('150.00') },
-        },
-      ]);
+    it('returns empty summary when there are no transactions', async () => {
+      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue({
+        debits: [],
+        credits: [],
+      });
+
+      const result = await service.summary('user-1', '2026-05');
+
+      expect(result).toEqual({ total: 0, byCategory: [] });
+    });
+
+    it('returns byCategory with debit amounts when there are no credits', async () => {
+      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue({
+        debits: [
+          {
+            category: 'Alimentação',
+            subcategory: 'Delivery',
+            _sum: { amount: new Decimal('216.00') },
+          },
+          {
+            category: 'Transporte',
+            subcategory: null,
+            _sum: { amount: new Decimal('150.00') },
+          },
+        ],
+        credits: [],
+      });
 
       const result = await service.summary('user-1', '2026-05');
 
       expect(result.total).toBeCloseTo(366, 2);
+      expect(
+        result.byCategory.find((c) => c.category === 'Alimentação')?.amount,
+      ).toBeCloseTo(216, 2);
+      expect(
+        result.byCategory.find((c) => c.category === 'Transporte')?.amount,
+      ).toBeCloseTo(150, 2);
+    });
+
+    it('nets credit against debit in the same category', async () => {
+      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue({
+        debits: [
+          {
+            category: 'Alimentação',
+            subcategory: 'Delivery',
+            _sum: { amount: new Decimal('500.00') },
+          },
+          {
+            category: 'Transporte',
+            subcategory: null,
+            _sum: { amount: new Decimal('200.00') },
+          },
+        ],
+        credits: [
+          {
+            category: 'Alimentação',
+            subcategory: 'Delivery',
+            _sum: { amount: new Decimal('80.00') },
+          },
+        ],
+      });
+
+      const result = await service.summary('user-1', '2026-05');
+
+      expect(result.total).toBeCloseTo(620, 2);
+      expect(
+        result.byCategory.find((c) => c.category === 'Alimentação')?.amount,
+      ).toBeCloseTo(420, 2);
+      expect(
+        result.byCategory.find((c) => c.category === 'Transporte')?.amount,
+      ).toBeCloseTo(200, 2);
+    });
+
+    it('nets credit in a different category than the debit', async () => {
+      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue({
+        debits: [
+          {
+            category: 'Alimentação',
+            subcategory: null,
+            _sum: { amount: new Decimal('500.00') },
+          },
+        ],
+        credits: [
+          {
+            category: 'Compras',
+            subcategory: null,
+            _sum: { amount: new Decimal('120.00') },
+          },
+        ],
+      });
+
+      const result = await service.summary('user-1', '2026-05');
+
+      expect(result.total).toBeCloseTo(380, 2);
+      expect(
+        result.byCategory.find((c) => c.category === 'Alimentação')?.amount,
+      ).toBeCloseTo(500, 2);
+      expect(
+        result.byCategory.find((c) => c.category === 'Compras')?.amount,
+      ).toBeCloseTo(-120, 2);
+    });
+
+    it('shows negative amount when credit has no debit in the category', async () => {
+      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue({
+        debits: [],
+        credits: [
+          {
+            category: 'Compras',
+            subcategory: null,
+            _sum: { amount: new Decimal('120.00') },
+          },
+        ],
+      });
+
+      const result = await service.summary('user-1', '2026-05');
+
+      expect(result.total).toBeCloseTo(-120, 2);
+      expect(result.byCategory).toHaveLength(1);
+      expect(result.byCategory[0].amount).toBeCloseTo(-120, 2);
+    });
+
+    it('sum of byCategory always equals total', async () => {
+      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue({
+        debits: [
+          {
+            category: 'Alimentação',
+            subcategory: null,
+            _sum: { amount: new Decimal('500.00') },
+          },
+          {
+            category: 'Transporte',
+            subcategory: null,
+            _sum: { amount: new Decimal('200.00') },
+          },
+        ],
+        credits: [
+          {
+            category: 'Alimentação',
+            subcategory: null,
+            _sum: { amount: new Decimal('80.00') },
+          },
+        ],
+      });
+
+      const result = await service.summary('user-1', '2026-05');
+
+      const sum = result.byCategory.reduce((acc, c) => acc + c.amount, 0);
+      expect(sum).toBeCloseTo(result.total, 2);
     });
 
     it('sorts byCategory by amount descending', async () => {
-      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue([
-        {
-          category: 'Transporte',
-          subcategory: null,
-          _sum: { amount: new Decimal('150.00') },
-        },
-        {
-          category: 'Alimentação',
-          subcategory: 'Delivery',
-          _sum: { amount: new Decimal('800.00') },
-        },
-        {
-          category: 'Outros',
-          subcategory: null,
-          _sum: { amount: new Decimal('50.00') },
-        },
-      ]);
+      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue({
+        debits: [
+          {
+            category: 'Transporte',
+            subcategory: null,
+            _sum: { amount: new Decimal('150.00') },
+          },
+          {
+            category: 'Alimentação',
+            subcategory: 'Delivery',
+            _sum: { amount: new Decimal('800.00') },
+          },
+          {
+            category: 'Outros',
+            subcategory: null,
+            _sum: { amount: new Decimal('50.00') },
+          },
+        ],
+        credits: [],
+      });
 
       const result = await service.summary('user-1', '2026-05');
 
@@ -325,64 +461,22 @@ describe('InvoicesQueryService', () => {
       ]);
     });
 
-    it('returns empty summary when no groups found for the month', async () => {
-      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue([]);
-
-      const result = await service.summary('user-1', '2026-05');
-
-      expect(result).toEqual({ total: 0, byCategory: [] });
-    });
-
     it('maps Decimal amounts to numbers in byCategory', async () => {
-      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue([
-        {
-          category: 'Alimentação',
-          subcategory: 'Supermercado',
-          _sum: { amount: new Decimal('1080.50') },
-        },
-      ]);
+      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue({
+        debits: [
+          {
+            category: 'Alimentação',
+            subcategory: 'Supermercado',
+            _sum: { amount: new Decimal('1080.50') },
+          },
+        ],
+        credits: [],
+      });
 
       const result = await service.summary('user-1', '2026-05');
 
       expect(typeof result.byCategory[0].amount).toBe('number');
       expect(result.byCategory[0].amount).toBeCloseTo(1080.5, 2);
-    });
-
-    it('subtracts the credits sum from total when there are refunds', async () => {
-      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue([
-        {
-          category: 'Alimentação',
-          subcategory: 'Delivery',
-          _sum: { amount: new Decimal('500.00') },
-        },
-        {
-          category: 'Transporte',
-          subcategory: null,
-          _sum: { amount: new Decimal('200.00') },
-        },
-      ]);
-      mockInvoicesRepository.findCreditsSumByMonth.mockResolvedValue(
-        new Decimal('80.00'),
-      );
-
-      const result = await service.summary('user-1', '2026-05');
-
-      expect(result.total).toBeCloseTo(620, 2);
-    });
-
-    it('does not change total when findCreditsSumByMonth returns null', async () => {
-      mockInvoicesRepository.findSummaryByMonth.mockResolvedValue([
-        {
-          category: 'Alimentação',
-          subcategory: null,
-          _sum: { amount: new Decimal('300.00') },
-        },
-      ]);
-      mockInvoicesRepository.findCreditsSumByMonth.mockResolvedValue(null);
-
-      const result = await service.summary('user-1', '2026-05');
-
-      expect(result.total).toBeCloseTo(300, 2);
     });
   });
 });

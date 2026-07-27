@@ -12,7 +12,10 @@ interface CategoryPieChartProps {
 
 export function CategoryPieChart({ byCategory }: CategoryPieChartProps) {
   const { view, items, activeCategory, drillInto, reset } = useCategoryDrillDown(byCategory);
-  const total = items.reduce((sum, item) => sum + item.amount, 0);
+
+  const debitItems = items.filter((item) => item.amount > 0);
+  const creditItems = items.filter((item) => item.amount <= 0);
+  const debitTotal = debitItems.reduce((sum, item) => sum + item.amount, 0);
 
   return (
     <div>
@@ -32,7 +35,7 @@ export function CategoryPieChart({ byCategory }: CategoryPieChartProps) {
       <ResponsiveContainer width="100%" height={180}>
         <PieChart>
           <Pie
-            data={items}
+            data={debitItems}
             dataKey="amount"
             nameKey="label"
             cx="50%"
@@ -43,7 +46,7 @@ export function CategoryPieChart({ byCategory }: CategoryPieChartProps) {
             onClick={view === 'categories' ? (entry) => drillInto(entry.name as string) : undefined}
             style={{ cursor: view === 'categories' ? 'pointer' : 'default' }}
           >
-            {items.map((_, i) => (
+            {debitItems.map((_, i) => (
               <Cell key={i} fill={COLORS[i % COLORS.length]} />
             ))}
           </Pie>
@@ -55,7 +58,7 @@ export function CategoryPieChart({ byCategory }: CategoryPieChartProps) {
       </ResponsiveContainer>
 
       <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5">
-        {items.map((item, i) => (
+        {debitItems.map((item, i) => (
           <li
             key={item.label}
             onClick={view === 'categories' ? () => drillInto(item.label) : undefined}
@@ -64,7 +67,16 @@ export function CategoryPieChart({ byCategory }: CategoryPieChartProps) {
             <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
             <span className="text-slate-600 truncate">{item.label}</span>
             <span className="text-slate-400 tabular-nums flex-shrink-0 ml-0.5">
-              {total > 0 ? `${((item.amount / total) * 100).toFixed(0)}%` : '—'}
+              {debitTotal > 0 ? `${((item.amount / debitTotal) * 100).toFixed(0)}%` : '—'}
+            </span>
+          </li>
+        ))}
+        {creditItems.map((item) => (
+          <li key={item.label} className="flex items-center gap-1.5 text-xs min-w-0">
+            <span className="w-2 h-2 rounded-sm flex-shrink-0 bg-emerald-400" />
+            <span className="text-slate-500 truncate">{item.label}</span>
+            <span className="text-emerald-600 tabular-nums flex-shrink-0 ml-0.5 font-medium">
+              +{formatBRL(Math.abs(item.amount))}
             </span>
           </li>
         ))}

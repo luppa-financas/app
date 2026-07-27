@@ -85,22 +85,43 @@ export class InvoicesQueryService {
   }
 
   async summary(userId: string, month: string): Promise<SummaryDto> {
-    const [groups, creditsSum] = await Promise.all([
-      this.invoicesRepository.findSummaryByMonth(userId, month),
-      this.invoicesRepository.findCreditsSumByMonth(userId, month),
-    ]);
+    const { debits, credits } =
+      await this.invoicesRepository.findSummaryByMonth(userId, month);
 
-    const byCategory = groups
-      .map((g) => ({
+    const map = new Map<
+      string,
+      { category: string | null; subcategory: string | null; amount: number }
+    >();
+
+    for (const g of debits) {
+      const key = `${g.category}|${g.subcategory}`;
+      map.set(key, {
         category: g.category,
         subcategory: g.subcategory,
         amount: g._sum.amount ? g._sum.amount.toNumber() : 0,
-      }))
-      .sort((a, b) => b.amount - a.amount);
+      });
+    }
 
-    const credits = creditsSum?.toNumber() ?? 0;
-    const total =
-      byCategory.reduce((sum, c) => sum + c.amount, 0) - credits;
+    for (const g of credits) {
+      const key = `${g.category}|${g.subcategory}`;
+      const creditAmount = g._sum.amount ? g._sum.amount.toNumber() : 0;
+      const existing = map.get(key);
+      if (existing) {
+        existing.amount -= creditAmount;
+      } else {
+        map.set(key, {
+          category: g.category,
+          subcategory: g.subcategory,
+          amount: -creditAmount,
+        });
+      }
+    }
+
+    const byCategory = Array.from(map.values()).sort(
+      (a, b) => b.amount - a.amount,
+    );
+    const total = byCategory.reduce((sum, c) => sum + c.amount, 0);
+
     return { total, byCategory };
   }
 }
