@@ -24,6 +24,7 @@ export interface TransactionsState {
   setCategory: (category: string) => void;
   setSubcategory: (subcategory: string) => void;
   toggleSort: (field: 'date' | 'amount') => void;
+  replaceTransaction: (updated: unknown) => void;
 }
 
 export function useTransactions(): TransactionsState {
@@ -111,6 +112,14 @@ export function useTransactions(): TransactionsState {
 
   const setSubcategory = useCallback((v: string) => setSubcategoryState(v), []);
 
+  const replaceTransaction = useCallback((updated: unknown) => {
+    setTransactions((prev) =>
+      prev.map((t) =>
+        (t as { id: string }).id === (updated as { id: string }).id ? updated : t,
+      ),
+    );
+  }, []);
+
   const toggleSort = useCallback((field: 'date' | 'amount') => {
     setSort((prev) => {
       if (prev === field) {
@@ -142,5 +151,6 @@ export function useTransactions(): TransactionsState {
     setCategory,
     setSubcategory,
     toggleSort,
+    replaceTransaction,
   };
 }
