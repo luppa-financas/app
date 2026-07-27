@@ -21,6 +21,7 @@ model Invoice {
   userId       String
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   filename     String
+  name         String?
   storagePath  String
   status       InvoiceStatus @default(PENDING)
   bank         String?

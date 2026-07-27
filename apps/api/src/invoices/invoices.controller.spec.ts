@@ -54,6 +54,7 @@ describe('InvoicesController', () => {
         'user-1',
         pdfFile,
         undefined,
+        undefined,
       );
     });
 
@@ -68,6 +69,7 @@ describe('InvoicesController', () => {
         'user-1',
         pdfFile,
         undefined,
+        undefined,
       );
     });
 
@@ -80,6 +82,20 @@ describe('InvoicesController', () => {
         'user-1',
         pdfFile,
         's3cret',
+        undefined,
+      );
+    });
+
+    it('should forward name from body to service', async () => {
+      mockInvoicesService.create.mockResolvedValue({ invoiceId: 'inv-1' });
+
+      await controller.create('user-1', pdfFile, emptyDto, undefined, 'Meu Nubank');
+
+      expect(mockInvoicesService.create).toHaveBeenCalledWith(
+        'user-1',
+        pdfFile,
+        undefined,
+        'Meu Nubank',
       );
     });
   });

@@ -51,8 +51,9 @@ export class InvoicesController {
     file: Express.Multer.File,
     @Body() _body: CreateInvoiceDto,
     @Body('password') password?: string,
+    @Body('name') name?: string,
   ): Promise<{ invoiceId: string }> {
-    return this.invoicesService.create(userId, file, password);
+    return this.invoicesService.create(userId, file, password, name);
   }
 
   @Get()

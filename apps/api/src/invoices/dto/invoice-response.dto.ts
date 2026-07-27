@@ -3,6 +3,7 @@ import { InvoiceWithDebits } from '../invoices.repository';
 export class InvoiceResponseDto {
   id: string;
   filename: string;
+  name: string | null;
   status: string;
   billingMonth: Date | null;
   total: number;
@@ -15,6 +16,7 @@ export class InvoiceResponseDto {
     return {
       id: invoice.id,
       filename: invoice.filename,
+      name: invoice.name ?? null,
       status: invoice.status,
       billingMonth: invoice.billingMonth,
       total,

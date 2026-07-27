@@ -48,6 +48,7 @@ describe('InvoicesRepository', () => {
       const result = await repository.create({
         userId: 'user-1',
         filename: 'fatura.pdf',
+        name: 'fatura.pdf',
         storagePath: 'invoices/user-1/fatura.pdf',
       });
 
@@ -56,6 +57,7 @@ describe('InvoicesRepository', () => {
         data: {
           userId: 'user-1',
           filename: 'fatura.pdf',
+          name: 'fatura.pdf',
           storagePath: 'invoices/user-1/fatura.pdf',
         },
       });
