@@ -54,7 +54,7 @@ export function TransactionsClient({ months }: { months: string[] }) {
     transactions, total, page, sort, order,
     q, month, bank, category, loading,
     setPage, setQ, setMonth, setBank, setCategory, toggleSort,
-    replaceTransaction,
+    replaceTransaction, refresh,
   } = useTransactions();
 
   const editHook = useEditTransaction();
@@ -68,7 +68,7 @@ export function TransactionsClient({ months }: { months: string[] }) {
 
   return (
     <div className="p-5 lg:p-7">
-      <EditTransactionModal hook={editHook} onSave={(u) => handleSaved(u as ApiTransaction)} />
+      <EditTransactionModal hook={editHook} onSave={(u) => handleSaved(u as ApiTransaction)} onBulkSave={refresh} />
       <div className="flex flex-wrap items-center gap-3 mb-5">
         <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 h-9 flex-1 min-w-48">
           <svg className="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
