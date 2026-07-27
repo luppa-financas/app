@@ -67,7 +67,7 @@ export function MonthlyBarChart({ data, selectedBanks }: MonthlyBarChartProps) {
               return (
                 <Bar key={bank} dataKey={bank} stackId="a" fill={bankColor(bank)} radius={isLast ? [4, 4, 0, 0] : [0, 0, 0, 0]}>
                   {isLast && (
-                    <LabelList dataKey="_total" position="top" formatter={(v: number) => formatBRL(v)} style={{ fontSize: 10, fill: '#64748b' }} />
+                    <LabelList dataKey="_total" position="top" formatter={(v) => formatBRL(Number(v))} style={{ fontSize: 10, fill: '#64748b' }} />
                   )}
                 </Bar>
               );
