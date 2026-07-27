@@ -25,6 +25,7 @@ export interface TransactionsState {
   setSubcategory: (subcategory: string) => void;
   toggleSort: (field: 'date' | 'amount') => void;
   replaceTransaction: (updated: unknown) => void;
+  refresh: () => void;
 }
 
 export function useTransactions(): TransactionsState {
@@ -42,6 +43,7 @@ export function useTransactions(): TransactionsState {
   const [transactions, setTransactions] = useState<unknown[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [refreshCounter, setRefreshCounter] = useState(0);
 
   const getTokenRef = useRef(getToken);
   getTokenRef.current = getToken;
@@ -85,7 +87,7 @@ export function useTransactions(): TransactionsState {
 
     void fetch_();
     return () => { cancelled = true; };
-  }, [page, sort, order, debouncedQ, month, bank, category, subcategory]);
+  }, [page, sort, order, debouncedQ, month, bank, category, subcategory, refreshCounter]);
 
   const setPage = useCallback((p: number) => setPageState(p), []);
 
@@ -111,6 +113,8 @@ export function useTransactions(): TransactionsState {
   }, []);
 
   const setSubcategory = useCallback((v: string) => setSubcategoryState(v), []);
+
+  const refresh = useCallback(() => setRefreshCounter((c) => c + 1), []);
 
   const replaceTransaction = useCallback((updated: unknown) => {
     setTransactions((prev) =>
@@ -152,5 +156,6 @@ export function useTransactions(): TransactionsState {
     setSubcategory,
     toggleSort,
     replaceTransaction,
+    refresh,
   };
 }
