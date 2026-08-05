@@ -352,13 +352,24 @@ describe('InvoicesRepository', () => {
         { id: 'inv-1' },
         { id: 'inv-2' },
       ]);
-      mockPrisma.transaction.groupBy.mockResolvedValue([
+      const debitRows = [
         {
           category: 'Alimentação',
           subcategory: 'Delivery',
           _sum: { amount: new Decimal('216.00') },
         },
-      ]);
+      ];
+      const creditRows = [
+        {
+          category: 'Compras',
+          subcategory: null,
+          _sum: { amount: new Decimal('80.00') },
+        },
+      ];
+      // The repo queries DEBIT first, CREDIT second (Promise.all order).
+      mockPrisma.transaction.groupBy
+        .mockResolvedValueOnce(debitRows)
+        .mockResolvedValueOnce(creditRows);
 
       const result = await repository.findSummaryByMonth('user-1', '2026-05');
 
@@ -383,20 +394,8 @@ describe('InvoicesRepository', () => {
           where: { invoiceId: { in: ['inv-1', 'inv-2'] }, type: 'CREDIT' },
         }),
       );
-      expect(result.debits).toEqual([
-        {
-          category: 'Alimentação',
-          subcategory: 'Delivery',
-          _sum: { amount: new Decimal('216.00') },
-        },
-      ]);
-      expect(result.credits).toEqual([
-        {
-          category: 'Alimentação',
-          subcategory: 'Delivery',
-          _sum: { amount: new Decimal('216.00') },
-        },
-      ]);
+      expect(result.debits).toEqual(debitRows);
+      expect(result.credits).toEqual(creditRows);
     });
 
     it('returns empty debits and credits when user has no invoices in that month', async () => {

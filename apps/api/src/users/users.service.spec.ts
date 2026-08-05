@@ -42,7 +42,7 @@ describe('UsersService', () => {
   });
 
   describe('getMe', () => {
-    it('should return existing user', async () => {
+    it('upserts by userId and returns the user (getMe always upserts)', async () => {
       const user = { id: 'user_1', roles: ['mvp'], createdAt: new Date() };
       mockUsersRepository.upsert.mockResolvedValue(user);
 
@@ -50,16 +50,6 @@ describe('UsersService', () => {
 
       expect(mockUsersRepository.upsert).toHaveBeenCalledWith('user_1');
       expect(result).toBe(user);
-    });
-
-    it('should create and return user when not found', async () => {
-      const user = { id: 'user_1', roles: [], createdAt: new Date() };
-      mockUsersRepository.upsert.mockResolvedValue(user);
-
-      const result = await service.getMe('user_1');
-
-      expect(mockUsersRepository.upsert).toHaveBeenCalledWith('user_1');
-      expect(result).toEqual(user);
     });
   });
 });

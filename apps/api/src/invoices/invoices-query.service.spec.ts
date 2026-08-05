@@ -13,6 +13,8 @@ describe('InvoicesQueryService', () => {
   let service: InvoicesQueryService;
 
   beforeEach(async () => {
+    jest.resetAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InvoicesQueryService,
@@ -21,7 +23,6 @@ describe('InvoicesQueryService', () => {
     }).compile();
 
     service = module.get(InvoicesQueryService);
-    jest.clearAllMocks();
   });
 
   describe('list', () => {

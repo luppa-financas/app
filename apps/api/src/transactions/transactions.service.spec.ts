@@ -31,6 +31,8 @@ describe('TransactionsService', () => {
   let service: TransactionsService;
 
   beforeEach(async () => {
+    jest.resetAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TransactionsService,
@@ -50,7 +52,6 @@ describe('TransactionsService', () => {
     }).compile();
 
     service = module.get(TransactionsService);
-    jest.clearAllMocks();
     mockPrisma.$transaction.mockImplementation(
       async <T>(callback: (tx: Prisma.TransactionClient) => Promise<T>) =>
         callback(mockTx),
@@ -204,7 +205,12 @@ describe('TransactionsService', () => {
         total: 0,
       });
 
-      await service.findMany('user-1', { page: 1, limit: 15, sort: 'date', order: 'asc' });
+      await service.findMany('user-1', {
+        page: 1,
+        limit: 15,
+        sort: 'date',
+        order: 'asc',
+      });
 
       expect(mockTransactionsRepository.findPaginated).toHaveBeenCalledWith(
         'user-1',
@@ -218,7 +224,12 @@ describe('TransactionsService', () => {
         total: 0,
       });
 
-      await service.findMany('user-1', { page: 1, limit: 15, sort: 'amount', order: 'desc' });
+      await service.findMany('user-1', {
+        page: 1,
+        limit: 15,
+        sort: 'amount',
+        order: 'desc',
+      });
 
       expect(mockTransactionsRepository.findPaginated).toHaveBeenCalledWith(
         'user-1',
@@ -234,7 +245,9 @@ describe('TransactionsService', () => {
 
       await service.findMany('user-1', { page: 1, limit: 20 });
 
-      const call = (mockTransactionsRepository.findPaginated.mock.calls as unknown[][])[0][1] as Record<string, unknown>;
+      const call = (
+        mockTransactionsRepository.findPaginated.mock.calls as unknown[][]
+      )[0][1] as Record<string, unknown>;
       expect(call.sort).toBeUndefined();
       expect(call.order).toBeUndefined();
     });

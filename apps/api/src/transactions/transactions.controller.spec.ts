@@ -14,6 +14,8 @@ describe('TransactionsController', () => {
   let controller: TransactionsController;
 
   beforeEach(async () => {
+    jest.resetAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [TransactionsController],
       providers: [
@@ -22,7 +24,6 @@ describe('TransactionsController', () => {
     }).compile();
 
     controller = module.get(TransactionsController);
-    jest.clearAllMocks();
   });
 
   describe('GET /transactions', () => {

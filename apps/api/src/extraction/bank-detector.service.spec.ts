@@ -24,6 +24,8 @@ describe('BankDetectorService', () => {
   let service: BankDetectorService;
 
   beforeEach(async () => {
+    // clearAllMocks (not resetAllMocks): the pdf-parse mock sets PDFParse's
+    // implementation in the jest.mock factory, and resetAllMocks would wipe it.
     jest.clearAllMocks();
     destroy.mockResolvedValue(undefined);
     service = await createService();
