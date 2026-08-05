@@ -36,12 +36,20 @@ describe('InvoiceResponseDto.from', () => {
   });
 
   it('exposes name field', () => {
-    const dto = InvoiceResponseDto.from({ ...base, name: 'Meu Nubank', transactions: [] });
+    const dto = InvoiceResponseDto.from({
+      ...base,
+      name: 'Meu Nubank',
+      transactions: [],
+    });
     expect(dto.name).toBe('Meu Nubank');
   });
 
   it('exposes null when name is not set', () => {
-    const dto = InvoiceResponseDto.from({ ...base, name: null, transactions: [] });
+    const dto = InvoiceResponseDto.from({
+      ...base,
+      name: null,
+      transactions: [],
+    });
     expect(dto.name).toBeNull();
   });
 

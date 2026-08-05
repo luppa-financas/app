@@ -45,9 +45,10 @@ export class InvoiceDetailResponseDto {
       status: invoice.status,
       bank: invoice.bank ?? null,
       billingMonth: invoice.billingMonth,
-      invoiceTotal: invoice.invoiceTotal !== null && invoice.invoiceTotal !== undefined
-        ? Number(invoice.invoiceTotal)
-        : null,
+      invoiceTotal:
+        invoice.invoiceTotal !== null && invoice.invoiceTotal !== undefined
+          ? Number(invoice.invoiceTotal)
+          : null,
       transactions: invoice.transactions.map((t) => TransactionDto.from(t)),
     };
   }

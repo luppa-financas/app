@@ -410,13 +410,15 @@ describe('ExtractionService', () => {
       },
     );
 
-    it.each(['Santander', 'Banco do Brasil', 'Caixa Econômica Federal', 'C6 Bank'])(
-      'stores unknown bank_name "%s" as-is',
-      async (bankName) => {
-        mockWithBankName(bankName);
-        expect((await service.extract(pdf)).bank).toBe(bankName);
-      },
-    );
+    it.each([
+      'Santander',
+      'Banco do Brasil',
+      'Caixa Econômica Federal',
+      'C6 Bank',
+    ])('stores unknown bank_name "%s" as-is', async (bankName) => {
+      mockWithBankName(bankName);
+      expect((await service.extract(pdf)).bank).toBe(bankName);
+    });
 
     it('falls back to BankDetectorService when bank_name is absent', async () => {
       mockBankDetector.detect.mockResolvedValue('nubank');

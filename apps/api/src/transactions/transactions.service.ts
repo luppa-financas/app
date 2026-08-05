@@ -4,7 +4,10 @@ import { MerchantRulesRepository } from '../merchant-rules/merchant-rules.reposi
 import { PrismaService } from '../prisma/prisma.service';
 import { BulkCategorizeDto } from './dto/bulk-categorize.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
-import { TransactionsRepository, TransactionWithBank } from './transactions.repository';
+import {
+  TransactionsRepository,
+  TransactionWithBank,
+} from './transactions.repository';
 
 export interface FindManyFilters {
   month?: string;
