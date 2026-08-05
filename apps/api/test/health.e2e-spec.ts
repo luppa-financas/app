@@ -8,7 +8,7 @@ import { AUTH_CLIENT } from '../src/auth/auth.constants';
 describe('HealthController (e2e)', () => {
   let app: INestApplication<App>;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
@@ -20,7 +20,7 @@ describe('HealthController (e2e)', () => {
     await app.init();
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
     await app.close();
   });
 

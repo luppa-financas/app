@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Decimal } from '@prisma/client/runtime/library';
-import { Invoice, InvoiceStatus, Transaction, TransactionType } from '@prisma/client';
+import {
+  Invoice,
+  InvoiceStatus,
+  Transaction,
+  TransactionType,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 interface CreateInvoiceData {

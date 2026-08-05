@@ -89,7 +89,13 @@ describe('InvoicesController', () => {
     it('should forward name from body to service', async () => {
       mockInvoicesService.create.mockResolvedValue({ invoiceId: 'inv-1' });
 
-      await controller.create('user-1', pdfFile, emptyDto, undefined, 'Meu Nubank');
+      await controller.create(
+        'user-1',
+        pdfFile,
+        emptyDto,
+        undefined,
+        'Meu Nubank',
+      );
 
       expect(mockInvoicesService.create).toHaveBeenCalledWith(
         'user-1',

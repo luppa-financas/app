@@ -49,9 +49,7 @@ export class InvoicesQueryService {
         invoiceTotal ??
         inv.transactions.reduce((sum, t) => {
           const value = t.amount.toNumber();
-          return t.type === TransactionType.CREDIT
-            ? sum - value
-            : sum + value;
+          return t.type === TransactionType.CREDIT ? sum - value : sum + value;
         }, 0);
       return {
         id: inv.id,

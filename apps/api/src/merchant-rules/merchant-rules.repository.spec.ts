@@ -13,6 +13,8 @@ describe('MerchantRulesRepository', () => {
   let repository: MerchantRulesRepository;
 
   beforeEach(async () => {
+    jest.resetAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MerchantRulesRepository,
@@ -21,7 +23,6 @@ describe('MerchantRulesRepository', () => {
     }).compile();
 
     repository = module.get(MerchantRulesRepository);
-    jest.clearAllMocks();
   });
 
   describe('upsert', () => {
