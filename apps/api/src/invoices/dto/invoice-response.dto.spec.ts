@@ -12,6 +12,7 @@ const base: Invoice = {
   bank: null,
   billingMonth: new Date('2025-09-01'),
   invoiceTotal: null,
+  needsReview: false,
   createdAt: new Date('2026-05-01'),
 };
 

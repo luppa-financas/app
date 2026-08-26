@@ -108,6 +108,17 @@ describe('InvoicesRepository', () => {
         data: { status: 'DONE', billingMonth },
       });
     });
+
+    it('should write needsReview when provided in extra', async () => {
+      mockPrisma.invoice.update.mockResolvedValue({});
+
+      await repository.updateStatus('inv-1', 'DONE', { needsReview: true });
+
+      expect(mockPrisma.invoice.update).toHaveBeenCalledWith({
+        where: { id: 'inv-1' },
+        data: { status: 'DONE', needsReview: true },
+      });
+    });
   });
 
   describe('findById', () => {

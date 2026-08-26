@@ -33,6 +33,7 @@ export class TransactionsListener {
         billingMonth,
         bank,
         invoiceTotal,
+        totalMismatch,
       } = await this.extractionService.extract(pdf);
       const classifications =
         await this.categorizationService.classifyMany(extracted);
@@ -51,6 +52,7 @@ export class TransactionsListener {
           billingMonth: new Date(`${billingMonth}-01T00:00:00.000Z`),
           bank,
           invoiceTotal,
+          needsReview: totalMismatch,
         },
       );
     } catch (error) {
