@@ -29,4 +29,7 @@ export interface ExtractionResult {
   transactions: ExtractedTransaction[];
   payments: ExtractedPayment[];
   futureInstallments: ExtractedFutureInstallment[];
+  // true when sum(débitos − créditos) diverges from the model's invoiceTotal
+  // beyond tolerance — the invoice total was reconciled and needs review.
+  totalMismatch: boolean;
 }

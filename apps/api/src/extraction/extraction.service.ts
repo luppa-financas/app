@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import {
   ANTHROPIC_CLIENT,
@@ -47,6 +47,11 @@ interface ClaudeExtractionResult {
 }
 
 const BILLING_MONTH_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+// Max difference (in R$) tolerated between the model's invoiceTotal and the net
+// of the extracted lines before we treat it as a mismatch. Absorbs IOF /
+// international-conversion rounding (a couple of centavos) without flagging.
+const RECONCILE_TOLERANCE = 0.05;
 
 function normalizeBankName(name: string): string {
   return BANK_PATTERNS.find(({ regex }) => regex.test(name))?.bank ?? name;
@@ -239,6 +244,7 @@ const PAYMENT_PATTERNS: Array<{
   { regex: /pagamento\s+deb\s+automatic/i, kind: 'invoice_payment' },
   { regex: /pagamento\s+efetuado/i, kind: 'invoice_payment' },
   { regex: /pagamento\s+(recebido|em\s+\d)/i, kind: 'invoice_payment' },
+  { regex: /pagamentos?\s+v[aá]lidos/i, kind: 'invoice_payment' },
   { regex: /saldo\s+anterior/i, kind: 'previous_balance' },
   { regex: /fatura\s+anterior/i, kind: 'previous_balance' },
   {
@@ -282,6 +288,8 @@ function dedupConsecutiveDuplicates(
 
 @Injectable()
 export class ExtractionService {
+  private readonly logger = new Logger(ExtractionService.name);
+
   constructor(
     @Inject(ANTHROPIC_CLIENT) private readonly client: Anthropic,
     private readonly bankDetector: BankDetectorService,
@@ -408,13 +416,30 @@ export class ExtractionService {
       ? normalizeBankName(result.bank_name)
       : bank;
 
+    const netLines = sumNet(transactions);
+    const totalMismatch =
+      Math.abs(netLines - result.invoiceTotal) > RECONCILE_TOLERANCE;
+    // On mismatch prefer the net of the extracted lines (it subtracts estornos),
+    // unless the net is non-positive — then a payment likely leaked into the
+    // lines and the model's total is the safer number.
+    const invoiceTotal =
+      totalMismatch && netLines > 0
+        ? Math.round(netLines * 100) / 100
+        : result.invoiceTotal;
+    if (totalMismatch) {
+      this.logger.warn(
+        `Invoice total mismatch: model=${result.invoiceTotal} net=${netLines} → reconciled=${invoiceTotal}`,
+      );
+    }
+
     return {
-      invoiceTotal: result.invoiceTotal,
+      invoiceTotal,
       billingMonth: result.billingMonth,
       bank: resolvedBank,
       transactions,
       payments,
       futureInstallments,
+      totalMismatch,
     };
   }
 }

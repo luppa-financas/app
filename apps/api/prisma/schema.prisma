@@ -27,6 +27,7 @@ model Invoice {
   bank         String?
   billingMonth DateTime?
   invoiceTotal Decimal?      @db.Decimal(10, 2)
+  needsReview  Boolean       @default(false)
   createdAt    DateTime      @default(now())
   transactions Transaction[]
 }

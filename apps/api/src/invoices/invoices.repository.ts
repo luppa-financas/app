@@ -19,6 +19,7 @@ interface UpdateStatusExtra {
   billingMonth?: Date;
   bank?: string;
   invoiceTotal?: number;
+  needsReview?: boolean;
 }
 
 interface FindAllFilters {
@@ -94,6 +95,7 @@ export class InvoicesRepository {
     if (extra?.bank) data.bank = extra.bank;
     if (extra?.invoiceTotal !== undefined)
       data.invoiceTotal = extra.invoiceTotal;
+    if (extra?.needsReview !== undefined) data.needsReview = extra.needsReview;
     await this.prisma.invoice.update({ where: { id }, data });
   }
 

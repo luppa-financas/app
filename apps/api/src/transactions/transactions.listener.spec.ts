@@ -70,6 +70,7 @@ describe('TransactionsListener', () => {
       payments: [],
       futureInstallments: [],
       billingMonth: '2026-04',
+      totalMismatch: false,
     });
     mockCategorizationService.classifyMany.mockResolvedValue([classified]);
 
@@ -94,6 +95,7 @@ describe('TransactionsListener', () => {
         billingMonth: new Date('2026-04-01T00:00:00.000Z'),
         bank: 'nubank',
         invoiceTotal: 45.9,
+        needsReview: false,
       },
     );
   });
@@ -107,6 +109,7 @@ describe('TransactionsListener', () => {
       payments: [],
       futureInstallments: [],
       billingMonth: '2026-04',
+      totalMismatch: false,
     });
     mockCategorizationService.classifyMany.mockResolvedValue([classified]);
 
@@ -119,7 +122,30 @@ describe('TransactionsListener', () => {
         billingMonth: new Date('2026-04-01T00:00:00.000Z'),
         bank: 'itau',
         invoiceTotal: 1234.56,
+        needsReview: false,
       },
+    );
+  });
+
+  it('flags the invoice for review (needsReview) when extraction reports a total mismatch', async () => {
+    mockStorageService.download.mockResolvedValue(pdfBuffer);
+    mockExtractionService.extract.mockResolvedValue({
+      invoiceTotal: 569.04,
+      bank: 'other',
+      transactions: extracted,
+      payments: [],
+      futureInstallments: [],
+      billingMonth: '2026-04',
+      totalMismatch: true,
+    });
+    mockCategorizationService.classifyMany.mockResolvedValue([classified]);
+
+    await listener.handleInvoiceCreated(event);
+
+    expect(mockInvoicesRepository.updateStatus).toHaveBeenCalledWith(
+      'inv-1',
+      InvoiceStatus.DONE,
+      expect.objectContaining({ needsReview: true }),
     );
   });
 

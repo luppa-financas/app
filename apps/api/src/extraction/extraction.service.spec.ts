@@ -474,4 +474,110 @@ describe('ExtractionService', () => {
       await expect(service.extract(pdf)).rejects.toThrow(/billingMonth/i);
     },
   );
+
+  describe('total reconciliation (estorno vs model total)', () => {
+    const debit = (amount: number, description = 'COMPRA') => ({
+      date: '2026-05-08',
+      description,
+      amount,
+      type: 'debit' as const,
+      category: 'Compras',
+      subcategory: null,
+      confidence: 0.9,
+    });
+    const credit = (amount: number, description = 'ESTORNO') => ({
+      date: '2026-05-08',
+      description,
+      amount,
+      type: 'credit' as const,
+      category: 'Compras',
+      subcategory: null,
+      confidence: 0.9,
+    });
+
+    it('reconciles invoiceTotal to the net of lines when the model total is gross (estorno not subtracted)', async () => {
+      // Model read the gross "Despesas" (588.96); lines net to 569.04 after the 19.92 estorno
+      mockAnthropicClient.messages.create.mockResolvedValue(
+        makeToolUseResponse(588.96, [debit(588.96), credit(19.92)]),
+      );
+
+      const result = await service.extract(pdf);
+
+      expect(result.invoiceTotal).toBeCloseTo(569.04, 2);
+      expect(result.totalMismatch).toBe(true);
+    });
+
+    it('keeps the model total and does not flag when it matches the net of lines', async () => {
+      mockAnthropicClient.messages.create.mockResolvedValue(
+        makeToolUseResponse(100, [debit(100)]),
+      );
+
+      const result = await service.extract(pdf);
+
+      expect(result.invoiceTotal).toBe(100);
+      expect(result.totalMismatch).toBe(false);
+    });
+
+    it('tolerates sub-R$0,05 rounding (IOF / international) without flagging', async () => {
+      // Nubank-style: line sum 1371.33 vs model 1371.35 — 2 centavos of rounding
+      mockAnthropicClient.messages.create.mockResolvedValue(
+        makeToolUseResponse(1371.35, [debit(1371.33, 'AMAZON')]),
+      );
+
+      const result = await service.extract(pdf);
+
+      expect(result.invoiceTotal).toBe(1371.35);
+      expect(result.totalMismatch).toBe(false);
+    });
+
+    it('keeps the model total and flags when the net of lines is non-positive (leaked-payment guard)', async () => {
+      // A payment that leaked into transactions pushes the net negative — do NOT trust it
+      mockAnthropicClient.messages.create.mockResolvedValue(
+        makeToolUseResponse(100, [debit(100), credit(600, 'CREDITO ENORME')]),
+      );
+
+      const result = await service.extract(pdf);
+
+      expect(result.invoiceTotal).toBe(100);
+      expect(result.totalMismatch).toBe(true);
+    });
+  });
+
+  it('moves "Pagamentos Validos Normais" to the payments bucket (safety net)', async () => {
+    mockAnthropicClient.messages.create.mockResolvedValue(
+      makeToolUseResponse(100, [
+        {
+          date: '2026-05-15',
+          description: 'UBER',
+          amount: 100,
+          type: 'debit',
+          category: 'Transporte',
+          subcategory: null,
+          confidence: 0.9,
+        },
+        {
+          date: '2026-05-15',
+          description: 'Pagamentos Validos Normais',
+          amount: 1012.57,
+          type: 'credit',
+          category: 'Outros',
+          subcategory: null,
+          confidence: 0.5,
+        },
+      ]),
+    );
+
+    const result = await service.extract(pdf);
+
+    expect(result.transactions.map((t) => t.description)).not.toContain(
+      'Pagamentos Validos Normais',
+    );
+    expect(
+      result.payments.some(
+        (p) =>
+          p.description === 'Pagamentos Validos Normais' &&
+          p.kind === 'invoice_payment',
+      ),
+    ).toBe(true);
+  });
 });
