@@ -1,10 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExtractionService } from './extraction.service';
 import { BankDetectorService } from './bank-detector.service';
+import { PdfTextService } from './pdf-text.service';
 import { ANTHROPIC_CLIENT } from './extraction.constants';
 
 const mockAnthropicClient = { messages: { create: jest.fn() } };
 const mockBankDetector = { detect: jest.fn() };
+const mockPdfText = { getText: jest.fn() };
 
 const pdf = Buffer.from('fake-pdf');
 
@@ -39,6 +41,7 @@ async function createService(): Promise<ExtractionService> {
       ExtractionService,
       { provide: ANTHROPIC_CLIENT, useValue: mockAnthropicClient },
       { provide: BankDetectorService, useValue: mockBankDetector },
+      { provide: PdfTextService, useValue: mockPdfText },
     ],
   }).compile();
   return module.get<ExtractionService>(ExtractionService);
@@ -50,6 +53,7 @@ describe('ExtractionService', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
     mockBankDetector.detect.mockResolvedValue('other');
+    mockPdfText.getText.mockResolvedValue('');
     service = await createService();
   });
 
@@ -530,6 +534,18 @@ describe('ExtractionService', () => {
       expect(result.totalMismatch).toBe(false);
     });
 
+    it('keeps the model total and flags when the net of lines EXCEEDS it (lines missed credits)', async () => {
+      // Model read the net total (100); a missed estorno left the lines at 120
+      mockAnthropicClient.messages.create.mockResolvedValue(
+        makeToolUseResponse(100, [debit(120, 'COMPRA')]),
+      );
+
+      const result = await service.extract(pdf);
+
+      expect(result.invoiceTotal).toBe(100);
+      expect(result.totalMismatch).toBe(true);
+    });
+
     it('keeps the model total and flags when the net of lines is non-positive (leaked-payment guard)', async () => {
       // A payment that leaked into transactions pushes the net negative — do NOT trust it
       mockAnthropicClient.messages.create.mockResolvedValue(
@@ -540,6 +556,214 @@ describe('ExtractionService', () => {
 
       expect(result.invoiceTotal).toBe(100);
       expect(result.totalMismatch).toBe(true);
+    });
+  });
+
+  describe('credit reclassification by description keyword (safety net)', () => {
+    const line = (
+      type: 'debit' | 'credit',
+      amount: number,
+      description: string,
+    ) => ({
+      date: '2026-09-04',
+      description,
+      amount,
+      type,
+      category: 'Outros',
+      subcategory: null,
+      confidence: 0.9,
+    });
+
+    it('flips a debit line to credit when the description denotes an estorno', async () => {
+      mockAnthropicClient.messages.create.mockResolvedValue(
+        makeToolUseResponse(80, [
+          line('debit', 100, 'COMPRA X'),
+          line('debit', 20, 'ESTORNO COMPRA X'),
+        ]),
+      );
+
+      const result = await service.extract(pdf);
+
+      const estorno = result.transactions.find((t) =>
+        t.description.includes('ESTORNO'),
+      );
+      expect(estorno?.type).toBe('credit');
+      expect(result.invoiceTotal).toBe(80);
+      expect(result.totalMismatch).toBe(false);
+    });
+
+    it('flips "Devolução" / "Reembolso" / "Cashback" too', async () => {
+      mockAnthropicClient.messages.create.mockResolvedValue(
+        makeToolUseResponse(70, [
+          line('debit', 100, 'LOJA'),
+          line('debit', 10, 'DEVOLUCAO LOJA'),
+          line('debit', 10, 'Reembolso viagem'),
+          line('debit', 10, 'CASHBACK ITAU'),
+        ]),
+      );
+
+      const result = await service.extract(pdf);
+
+      const credits = result.transactions.filter((t) => t.type === 'credit');
+      expect(credits).toHaveLength(3);
+    });
+
+    it('does not flip a purchase whose merchant merely contains "credito"', async () => {
+      mockAnthropicClient.messages.create.mockResolvedValue(
+        makeToolUseResponse(50, [line('debit', 50, 'CREDITO E CIA MATERIAIS')]),
+      );
+
+      const result = await service.extract(pdf);
+
+      expect(result.transactions[0].type).toBe('debit');
+    });
+  });
+
+  describe('credit reclassification by PDF sign marker', () => {
+    const line = (
+      type: 'debit' | 'credit',
+      amount: number,
+      description: string,
+    ) => ({
+      date: '2026-09-04',
+      description,
+      amount,
+      type,
+      category: 'Transporte',
+      subcategory: null,
+      confidence: 0.9,
+    });
+
+    it('flips debits to credit when the text shows a trailing "-" for that amount', async () => {
+      mockPdfText.getText.mockResolvedValue(
+        [
+          '05/09 PAGTO. POR DEB EM C/C 1.000,00 -',
+          '31/01 URENTCAR FLORIANOPOL',
+          'IS',
+          '9,99 -',
+          '28/02 URENTCAR FLORIANOPOL',
+          'IS',
+          '9,99 -',
+          '04/08 URENTCAR FLORIANOPOL',
+          'IS',
+          '9,99',
+          '17/08 POSTO CARIBE FORTALEZA 303,20',
+        ].join('\n'),
+      );
+      // net total = 9,99 charge + 303,20 − 2×9,99 estorno = 293,21
+      mockAnthropicClient.messages.create.mockResolvedValue(
+        makeToolUseResponse(293.21, [
+          line('debit', 9.99, 'URENTCAR'),
+          line('debit', 9.99, 'URENTCAR'),
+          line('debit', 9.99, 'URENTCAR'),
+          line('debit', 303.2, 'POSTO CARIBE'),
+        ]),
+      );
+
+      const result = await service.extract(pdf);
+
+      const credits = result.transactions.filter((t) => t.type === 'credit');
+      // text marks two 9,99 credits; the third 9,99 (no "-") stays a debit
+      expect(credits).toHaveLength(2);
+      expect(result.transactions).toHaveLength(4);
+      expect(result.invoiceTotal).toBeCloseTo(293.21, 2);
+      expect(result.totalMismatch).toBe(false);
+    });
+
+    it('does not exceed the count of markers found in the text', async () => {
+      mockPdfText.getText.mockResolvedValue(
+        ['10/08 NETFLIX 59,90 -', '11/08 NETFLIX BR 59,90'].join('\n'),
+      );
+      mockAnthropicClient.messages.create.mockResolvedValue(
+        makeToolUseResponse(59.9, [
+          line('debit', 59.9, 'NETFLIX'),
+          line('debit', 59.9, 'NETFLIX BR'),
+        ]),
+      );
+
+      const result = await service.extract(pdf);
+
+      expect(
+        result.transactions.filter((t) => t.type === 'credit'),
+      ).toHaveLength(1);
+    });
+
+    it('does not double-count a credit the model already got right', async () => {
+      mockPdfText.getText.mockResolvedValue(
+        ['15/08 ESTORNO 9,99 -', '16/08 URENTCAR 9,99 -'].join('\n'),
+      );
+      mockAnthropicClient.messages.create.mockResolvedValue(
+        makeToolUseResponse(0, [
+          line('credit', 9.99, 'ESTORNO'),
+          line('debit', 9.99, 'URENTCAR'),
+        ]),
+      );
+
+      const result = await service.extract(pdf);
+
+      // budget of 2 markers − 1 already-credit = 1 flip left
+      expect(
+        result.transactions.filter((t) => t.type === 'credit'),
+      ).toHaveLength(2);
+    });
+
+    it('ignores payment lines when collecting markers', async () => {
+      mockPdfText.getText.mockResolvedValue(
+        ['05/09 PAGAMENTO EFETUADO 500,00 -', '06/09 LOJA 500,00'].join('\n'),
+      );
+      mockAnthropicClient.messages.create.mockResolvedValue(
+        makeToolUseResponse(500, [line('debit', 500, 'LOJA')]),
+      );
+
+      const result = await service.extract(pdf);
+
+      expect(result.transactions[0].type).toBe('debit');
+    });
+  });
+
+  describe('consecutive-duplicate dedup guard', () => {
+    const dup = (type: 'debit' | 'credit', amount: number) => ({
+      date: '2026-09-04',
+      description: 'URENTCAR',
+      amount,
+      type,
+      category: 'Transporte',
+      subcategory: null,
+      confidence: 0.9,
+    });
+
+    it('keeps legitimate repeated estorno lines when they already reconcile', async () => {
+      // 1 charge + 3 identical estornos; net = 100 - 30 = 70 = model total
+      mockAnthropicClient.messages.create.mockResolvedValue(
+        makeToolUseResponse(70, [
+          { ...dup('debit', 100), description: 'BIG PURCHASE' },
+          dup('credit', 10),
+          dup('credit', 10),
+          dup('credit', 10),
+        ]),
+      );
+
+      const result = await service.extract(pdf);
+
+      expect(result.transactions).toHaveLength(4);
+      expect(result.totalMismatch).toBe(false);
+    });
+
+    it('still drops a real page-break duplicate when that reconciles the total', async () => {
+      // Model total 100; lines sum 150 because one debit is duplicated
+      mockAnthropicClient.messages.create.mockResolvedValue(
+        makeToolUseResponse(100, [
+          { ...dup('debit', 50), description: 'STORE A' },
+          { ...dup('debit', 50), description: 'STORE A' },
+          { ...dup('debit', 50), description: 'STORE B' },
+        ]),
+      );
+
+      const result = await service.extract(pdf);
+
+      expect(result.transactions).toHaveLength(2);
+      expect(result.invoiceTotal).toBe(100);
+      expect(result.totalMismatch).toBe(false);
     });
   });
 

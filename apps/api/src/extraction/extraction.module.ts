@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import { ExtractionService } from './extraction.service';
 import { BankDetectorService } from './bank-detector.service';
+import { PdfTextService } from './pdf-text.service';
 import { ANTHROPIC_CLIENT } from './extraction.constants';
 
 @Module({
@@ -16,6 +17,7 @@ import { ANTHROPIC_CLIENT } from './extraction.constants';
         }),
     },
     BankDetectorService,
+    PdfTextService,
     ExtractionService,
   ],
   exports: [ExtractionService],
