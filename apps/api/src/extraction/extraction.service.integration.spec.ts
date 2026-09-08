@@ -1,3 +1,8 @@
+// Run with:
+//   RUN_EXTRACTION_INTEGRATION=1 NODE_OPTIONS=--experimental-vm-modules pnpm test extraction.service.integration
+// The NODE_OPTIONS flag is required for pdf-parse (pdfjs-dist ESM worker) to load
+// under ts-jest — without it PdfTextService silently yields empty text and the
+// sign-marker cross-check is a no-op.
 import 'dotenv/config';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
@@ -5,6 +10,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import Anthropic from '@anthropic-ai/sdk';
 import { ExtractionService } from './extraction.service';
 import { BankDetectorService } from './bank-detector.service';
+import { PdfTextService } from './pdf-text.service';
 import { ANTHROPIC_CLIENT } from './extraction.constants';
 
 const RUN = process.env.RUN_EXTRACTION_INTEGRATION === '1';
@@ -33,6 +39,7 @@ interface ExpectedCase {
   label: string;
   expectPayments: boolean;
   expectFutureInstallments: boolean;
+  expectCredits?: boolean;
 }
 
 function sumNet(
@@ -56,6 +63,7 @@ describeIf('ExtractionService (integration)', () => {
       providers: [
         ExtractionService,
         BankDetectorService,
+        PdfTextService,
         { provide: ANTHROPIC_CLIENT, useValue: client },
       ],
     }).compile();
@@ -88,6 +96,18 @@ describeIf('ExtractionService (integration)', () => {
       label: 'Bradesco',
       expectPayments: true,
       expectFutureInstallments: false,
+    },
+    {
+      // Trailing "-" marks credits in the Bradesco layout. This invoice has 11
+      // URENTCAR estornos of R$ 9,99 (R$ 109,89) that must land as `credit`.
+      // Total da fatura 4058.53 = Compras 4168.42 − estornos 109.89.
+      file: 'bradesco-estorno-set.pdf',
+      expectedTotal: 4058.53,
+      expectedBillingMonth: '2026-09',
+      label: 'Bradesco (estornos)',
+      expectPayments: true,
+      expectFutureInstallments: false,
+      expectCredits: true,
     },
   ];
 
@@ -123,6 +143,15 @@ describeIf('ExtractionService (integration)', () => {
           expect(['debit', 'credit']).toContain(t.type);
         }
       });
+
+      if (c.expectCredits) {
+        it('extracts refund/estorno lines as credit', () => {
+          const credits = result.transactions.filter(
+            (t) => t.type === 'credit',
+          );
+          expect(credits.length).toBeGreaterThan(0);
+        });
+      }
 
       if (c.expectPayments) {
         it('payments array is populated with valid entries', () => {

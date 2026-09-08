@@ -12,6 +12,7 @@ import {
   ExtractionResult,
 } from './extraction.types';
 import { BankDetectorService, BANK_PATTERNS } from './bank-detector.service';
+import { PdfTextService } from './pdf-text.service';
 
 interface ClaudeTransaction {
   date: string;
@@ -193,7 +194,7 @@ BUCKET 1 — \`transactions\` (purchase transactions in the current period)
 - Every line representing a purchase made by the cardholder during the current billing period.
 - Current installment of split purchases (e.g. "12/03 SMILES FIDEL*CAR 02/05 157,41" — installment 2 of 5 charged this period).
 - IOF lines tied to international purchases (spending in this period).
-- Refunds / estornos / créditos: type "credit" with a POSITIVE amount.
+- Refunds / estornos / créditos: type "credit" with a POSITIVE amount (see "DEBIT vs CREDIT" below).
 
 BUCKET 2 — \`payments\` (invoice payments + previous balances, NOT purchases)
 - Invoice payments → kind: "invoice_payment":
@@ -211,10 +212,11 @@ BUCKET 3 — \`futureInstallments\` (will be charged in next invoices, NOT this 
 - Every row in this section goes to \`futureInstallments\`, NEVER to \`transactions\`.
 
 INVOICE TOTAL
-Return invoiceTotal as the SUM OF PURCHASES IN THE CURRENT PERIOD.
+Return invoiceTotal as the SUM OF CURRENT-PERIOD PURCHASES, NET OF ANY REFUNDS/ESTORNOS in the same period (i.e. it must equal sum(debits) − sum(credits) of BUCKET 1).
 - Itaú: read "Total dos lançamentos atuais".
 - Nubank: "Total de compras de todos os cartões" + "IOF de compras internacionais". DO NOT use "Total a pagar" — it is net of payments.
-- Bradesco: read "Total para: <name>" at the bottom of the statement, when present.
+- Bradesco: read "Total para <NAME>" / "Total da fatura em real" at the very bottom (already net of estornos). DO NOT use "(+) Compras/Débitos" from the "Resumo da fatura" — that figure is GROSS (before estornos).
+- Do NOT create line items from the "Resumo da fatura" block ("Saldo anterior", "(-) Créditos/Pagamentos", "(+) Compras/Débitos", "(=) Total"). Those are summary totals, not transactions or payments — only extract dated rows from the "Lançamentos" list.
 
 BILLING MONTH
 Return billingMonth as the month of the invoice's DUE DATE (vencimento), in format YYYY-MM (zero-padded month).
@@ -227,10 +229,29 @@ AMOUNTS
 - amount must always be POSITIVE in all three arrays.
 - For transactions: direction is conveyed by type ("debit" for purchases, "credit" for refunds/estornos).
 
+DEBIT vs CREDIT (classify EVERY line in \`transactions\`)
+Do not assume a line is a purchase. A line is a CREDIT (type "credit") when ANY of these hold — check each line for them:
+- a minus sign attached to the amount: "-64,90" or "64,90 -" or "64,90-", or the amount in parentheses "(64,90)". NOTE: a " - " with spaces on both sides is often just a separator between description and value (Itaú) — that alone is NOT a credit.
+- a direction marker next to the value: a trailing "C" or "CR" (as opposed to "D"/"DB" for debit);
+- the value appears in a dedicated credit column or under a section headed "Créditos", "Estornos", "Pagamentos e créditos", "Devoluções";
+- the description denotes a refund: "estorno", "devolução", "reembolso", "cashback", "ajuste a crédito". A bare "crédito"/"credit" in a merchant name (e.g. "UBER_CREDIT", "CREDITO E CIA") or "compra a crédito" is NOT a refund — those are debits.
+Otherwise the line is a "debit" (a purchase).
+Repeated identical credit lines are NORMAL (e.g. a recurring subscription reversed for several past months) — extract EVERY one of them; never drop a repeat that carries a credit marker.
+The same merchant can appear as both a debit (the charge) and one or more credits (the estornos) in the same invoice — keep them all.
+
 SELF-CHECK BEFORE RETURNING
-After populating the three buckets, verify:
+Most invoices carry a "Resumo da fatura" / summary block. Read its figures:
+  previous balance ("Saldo anterior" / "Fatura anterior")
+  payments + credits ("Créditos/Pagamentos" / "Pagamentos e créditos")
+  purchases ("Compras/Débitos" / "Lançamentos")
+  total
+Then verify, correcting BUCKET assignments until all hold:
 1. sum(debits − credits) of items in \`transactions\` ≈ invoiceTotal (within R$ 0,01).
-2. If they differ by more than R$ 1, you likely misclassified some entries. Common mistakes:
+2. sum of \`credits\` in \`transactions\` ~ (payments+credits figure from the summary) minus sum of the \`payments\` you extracted.
+   If that figure is clearly larger than your payments but you produced ZERO credits, you missed the estornos - re-scan every line for the credit markers listed above.
+3. If totals differ by more than R$ 1, you likely misclassified some entries. Common mistakes:
+   - Estorno/refund lines classified as "debit" instead of "credit" (a minus sign or credit column was missed).
+   - Summary-block totals ("Resumo da fatura") extracted as if they were line items (drop them).
    - Rows from "Compras parceladas - próximas faturas" leaked into \`transactions\` (move them to \`futureInstallments\`).
    - "SALDO ANTERIOR" / "Fatura anterior" / payment rows leaked into \`transactions\` (move them to \`payments\`).
    - Page-break duplicates (same date + description + amount appearing twice consecutively in the PDF).
@@ -269,6 +290,112 @@ function sumNet(transactions: ExtractedTransaction[]): number {
   );
 }
 
+// Deterministic safety net: descriptions that unambiguously denote a credit.
+// Bank-agnostic — forces `type: 'credit'` even if the model classified the line
+// as a debit. Merchant-only estornos (no keyword) still rely on the model
+// reading the credit marker in the PDF.
+const CREDIT_KEYWORD_REGEX =
+  /\b(estorno|devolu[cç][aã]o|reembolso|cashback|ajuste\s+a\s+cr[eé]dito)\b/i;
+
+function reclassifyKnownCredits(transactions: ExtractedTransaction[]): {
+  transactions: ExtractedTransaction[];
+  flipped: number;
+} {
+  let flipped = 0;
+  const out = transactions.map((t) => {
+    if (t.type === 'debit' && CREDIT_KEYWORD_REGEX.test(t.description)) {
+      flipped += 1;
+      return { ...t, type: 'credit' as const };
+    }
+    return t;
+  });
+  return { transactions: out, flipped };
+}
+
+const BR_AMOUNT = String.raw`\d{1,3}(?:\.\d{3})*,\d{2}`;
+// An amount with a trailing "-" (Bradesco/Santander) or in parentheses is a
+// credit. We deliberately do NOT scan for a *leading* "-": Itaú uses " - " as a
+// plain description/amount separator, so "-VALUE" is ambiguous there — leading-
+// dash estornos on Itaú/Nubank are caught by the description keyword net and the
+// model prompt instead.
+const TRAILING_MARKER = new RegExp(`(${BR_AMOUNT})\\s*-(?:\\s|$)`);
+const PAREN_MARKER = new RegExp(`\\(\\s*(${BR_AMOUNT})\\s*\\)`);
+
+function toCents(brAmount: string): number {
+  return Math.round(
+    parseFloat(brAmount.replace(/\./g, '').replace(',', '.')) * 100,
+  );
+}
+
+/**
+ * Deterministic cross-check: scans the PDF text layer for statement lines whose
+ * amount carries a credit marker (trailing "-" or parentheses) and returns how
+ * many such credit lines exist per amount (in cents). The model routinely misses
+ * these markers (e.g. Bradesco prints the "-" on a wrapped line). Payment lines
+ * are excluded — they are not purchase-side credits.
+ */
+function detectCreditSignatures(text: string): Map<number, number> {
+  const counts = new Map<number, number>();
+  const isDateLine = /^\s*\d{2}\/\d{2}\b/;
+  const lines = text.split('\n');
+  let entry: string[] = [];
+
+  const flush = () => {
+    if (entry.length === 0) return;
+    const joined = entry.join(' ');
+    entry = [];
+    if (matchPaymentKind(joined)) return;
+    const match = TRAILING_MARKER.exec(joined) ?? PAREN_MARKER.exec(joined);
+    if (!match) return;
+    const cents = toCents(match[1]);
+    counts.set(cents, (counts.get(cents) ?? 0) + 1);
+  };
+
+  for (const line of lines) {
+    if (isDateLine.test(line)) {
+      flush();
+      entry.push(line);
+    } else if (entry.length > 0) {
+      entry.push(line);
+    }
+  }
+  flush();
+  return counts;
+}
+
+/**
+ * Flips model `debit` lines to `credit` when the PDF text shows a credit marker
+ * for that amount and the model did not already account for it. Bounded by the
+ * per-amount count found in the text.
+ */
+function reclassifyBySignatures(
+  transactions: ExtractedTransaction[],
+  signatures: Map<number, number>,
+): { transactions: ExtractedTransaction[]; flipped: number } {
+  if (signatures.size === 0) return { transactions, flipped: 0 };
+
+  const budget = new Map(signatures);
+  for (const t of transactions) {
+    if (t.type === 'credit') {
+      const cents = Math.round(t.amount * 100);
+      const left = budget.get(cents);
+      if (left) budget.set(cents, left - 1);
+    }
+  }
+
+  let flipped = 0;
+  const out = transactions.map((t) => {
+    if (t.type !== 'debit') return t;
+    const cents = Math.round(t.amount * 100);
+    const left = budget.get(cents) ?? 0;
+    if (left <= 0) return t;
+    budget.set(cents, left - 1);
+    flipped += 1;
+    return { ...t, type: 'credit' as const };
+  });
+  return { transactions: out, flipped };
+}
+
 function dedupConsecutiveDuplicates(
   transactions: ExtractedTransaction[],
 ): ExtractedTransaction[] {
@@ -293,10 +420,14 @@ export class ExtractionService {
   constructor(
     @Inject(ANTHROPIC_CLIENT) private readonly client: Anthropic,
     private readonly bankDetector: BankDetectorService,
+    private readonly pdfText: PdfTextService,
   ) {}
 
   async extract(pdf: Buffer): Promise<ExtractionResult> {
-    const bank = await this.bankDetector.detect(pdf);
+    const [bank, pdfText] = await Promise.all([
+      this.bankDetector.detect(pdf),
+      this.pdfText.getText(pdf),
+    ]);
     const model =
       bank === 'itau' ? EXTRACTION_MODEL_COMPLEX : EXTRACTION_MODEL_DEFAULT;
 
@@ -399,8 +530,34 @@ export class ExtractionService {
       }
     }
 
-    if (Math.abs(sumNet(transactions) - result.invoiceTotal) > 0.01) {
-      transactions = dedupConsecutiveDuplicates(transactions);
+    const byKeyword = reclassifyKnownCredits(transactions);
+    if (byKeyword.flipped > 0) {
+      this.logger.warn(
+        `Reclassified ${byKeyword.flipped} debit line(s) to credit by description keyword`,
+      );
+      transactions = byKeyword.transactions;
+    }
+
+    const bySignature = reclassifyBySignatures(
+      transactions,
+      detectCreditSignatures(pdfText),
+    );
+    if (bySignature.flipped > 0) {
+      this.logger.warn(
+        `Reclassified ${bySignature.flipped} debit line(s) to credit by PDF sign marker`,
+      );
+      transactions = bySignature.transactions;
+    }
+
+    // Only dedup when the lines don't reconcile AND removing consecutive
+    // duplicates gets the net closer to the model's total — otherwise we risk
+    // dropping legitimate repeated lines (e.g. several identical estornos).
+    const drift = Math.abs(sumNet(transactions) - result.invoiceTotal);
+    if (drift > 0.01) {
+      const deduped = dedupConsecutiveDuplicates(transactions);
+      if (Math.abs(sumNet(deduped) - result.invoiceTotal) < drift) {
+        transactions = deduped;
+      }
     }
 
     const futureInstallments: ExtractedFutureInstallment[] = (
@@ -419,11 +576,13 @@ export class ExtractionService {
     const netLines = sumNet(transactions);
     const totalMismatch =
       Math.abs(netLines - result.invoiceTotal) > RECONCILE_TOLERANCE;
-    // On mismatch prefer the net of the extracted lines (it subtracts estornos),
-    // unless the net is non-positive — then a payment likely leaked into the
-    // lines and the model's total is the safer number.
+    // Reconciliation on mismatch:
+    //  - net < model  → the model likely read the GROSS total ("Compras/Débitos")
+    //    while the lines already subtract the estornos → trust the net.
+    //  - net >= model → the lines likely missed some credits, or a payment leaked
+    //    in → the model's total is the safer number.
     const invoiceTotal =
-      totalMismatch && netLines > 0
+      totalMismatch && netLines > 0 && netLines < result.invoiceTotal
         ? Math.round(netLines * 100) / 100
         : result.invoiceTotal;
     if (totalMismatch) {
